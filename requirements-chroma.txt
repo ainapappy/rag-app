@@ -1,0 +1,3 @@
+# Dépendance optionnelle : index vectoriel Chroma (lourd).
+# L'index « simple » (numpy) est le défaut et suffit en local.
+chromadb

@@ -1,0 +1,31 @@
+[project]
+name = "rag-app"
+version = "0.1.0"
+description = "Application RAG (documents + mini chatbot) en Django avec Ollama"
+requires-python = ">=3.11"
+
+# ---------------------------------------------------------------------------
+# Ruff (linter / formateur) — équivalent de Pint + PHPStan
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle (erreurs de style)
+    "F",  # pyflakes (variables inutilisées, imports...)
+    "I",  # isort (tri des imports)
+    "UP", # pyupgrade (syntaxe moderne)
+    "B",  # bugbear (pièges classiques)
+]
+
+# ---------------------------------------------------------------------------
+# Pytest — équivalent de PHPUnit
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+testpaths = ["tests"]
+markers = [
+    "integration: tests qui nécessitent un service réel (Ollama, réseau) — exclus par défaut en CI",
+]
