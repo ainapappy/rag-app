@@ -95,6 +95,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # Expose FRONTEND_DEV_URL aux templates (assets Vite).
+                "chatbot.context_processors.frontend",
             ],
         },
     },
@@ -184,6 +186,10 @@ MAX_UPLOAD_MB = env.int("MAX_UPLOAD_MB", default=10)
 
 # Indexer automatiquement un document juste après l'upload dans l'admin.
 INDEX_ON_UPLOAD = env.bool("INDEX_ON_UPLOAD", default=True)
+
+# URL du serveur Vite en développement front (ex. http://localhost:5173).
+# Vide en production : les assets construits sont servis depuis static/.
+FRONTEND_DEV_URL = env("FRONTEND_DEV_URL", default="")
 
 # Limite de requêtes par fenêtre de 60 s (API par clé, chat par utilisateur,
 # login par IP). Voir chatbot/ratelimit.py pour la limite multi-processus.

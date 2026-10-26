@@ -53,32 +53,17 @@ def test_anonymous_redirects_to_login(client):
 def test_logged_user_sees_chat_page(logged_client):
     response = logged_client.get(reverse("chat"))
     assert response.status_code == 200
-    assert "Nouvelle conversation" in response.content.decode()
-
-
-def test_create_conversation_redirects_to_detail(logged_client):
-    response = logged_client.post(reverse("chat_new"))
-    assert response.status_code == 302
-    conversation = Conversation.objects.get()
-    assert response.url == reverse("chat_detail", args=[conversation.pk])
-    assert conversation.user.username == "alice"
+    # La coquille HTML contient le point de montage de l'application Vue.
+    assert 'id="chat-app"' in response.content.decode()
 
 
 def test_other_users_conversation_returns_404(other_logged_client, conversation):
-    """Bob ne peut ni voir, ni supprimer, ni alimenter la conversation d'Alice."""
+    """Bob ne peut ni voir la conversation d'Alice, ni l'alimenter."""
     url = reverse("chat_detail", args=[conversation.pk])
     assert other_logged_client.get(url).status_code == 404
-    delete_url = reverse("chat_delete", args=[conversation.pk])
-    assert other_logged_client.post(delete_url).status_code == 404
     send_url = reverse("chat_send", args=[conversation.pk])
     response = other_logged_client.post(send_url, {"question": "x"})
     assert response.status_code == 404
-
-
-def test_delete_own_conversation(logged_client, conversation):
-    response = logged_client.post(reverse("chat_delete", args=[conversation.pk]))
-    assert response.status_code == 302
-    assert not Conversation.objects.filter(pk=conversation.pk).exists()
 
 
 # ---------------------------------------------------------------------------
@@ -103,9 +88,10 @@ def test_send_streaming_response(
     assert conversation.messages.count() == 2
 
 
-def test_send_without_streaming_returns_fragment(
+def test_send_without_streaming_returns_json(
     logged_client, conversation, patched_chat_container, rag_pipeline, monkeypatch
 ):
+    """Mode STREAMING_ENABLED=False : un JSON unique (pas de fragment HTML)."""
     monkeypatch.setenv("STREAMING_ENABLED", "false")
     from rag_core.settings import get_settings
 
@@ -117,8 +103,11 @@ def test_send_without_streaming_returns_fragment(
     finally:
         get_settings.cache_clear()
     assert response.status_code == 200
-    assert "text/html" in response["Content-Type"]
-    assert "Réponse de test." in response.content.decode()
+    assert "application/json" in response["Content-Type"]
+    payload = response.json()
+    assert payload["role"] == "assistant"
+    assert payload["content"] == "Réponse de test."
+    assert isinstance(payload["sources"], list)
     assert conversation.messages.count() == 2
 
 
@@ -138,12 +127,12 @@ def test_send_empty_question_rejected(logged_client, conversation, patched_chat_
 
 
 def test_conversation_detail_shows_history(logged_client, conversation, rag_pipeline):
+    """Le deep-link /chat/<pk>/ rend la coquille et l'historique est conservé."""
     service = ChatService(container=_container_with(rag_pipeline))
     service.ask(conversation, "une question")
     response = logged_client.get(reverse("chat_detail", args=[conversation.pk]))
-    content = response.content.decode()
-    assert "une question" in content
-    assert "Réponse de test." in content
+    assert response.status_code == 200
+    assert 'id="chat-app"' in response.content.decode()
     # L'historique est conservé au rechargement.
     assert conversation.messages.count() == 2
 

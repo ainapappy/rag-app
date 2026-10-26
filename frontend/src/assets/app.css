@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Scanner aussi les templates Django : ils utilisent des classes utilitaires
+   (coquille HTML, page de connexion) que Tailwind doit générer. */
+@source "../../../chatbot/templates";
+@source "../../../templates";

@@ -47,6 +47,12 @@ python manage.py migrate
 python manage.py createsuperuser
 python manage.py collectstatic --noinput
 
+# 5 bis. Front : construire AVANT collectstatic (sinon pages sans JS/CSS).
+#    Node 20+ requis sur la machine de build (ou construire en local puis
+#    téléverser static/chatbot/app/, non versionné).
+cd frontend && npm ci && npm run build && cd ..
+python manage.py collectstatic --noinput
+
 # 6. Lancer le serveur : méthode DE L'HÉBERGEUR (à vérifier dans leur doc).
 #    Le point d'entrée est passenger_wsgi.py (objet `application`).
 

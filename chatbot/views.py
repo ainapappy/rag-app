@@ -13,8 +13,7 @@ from django.http import (
     JsonResponse,
     StreamingHttpResponse,
 )
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from chatbot.models import Conversation
@@ -47,16 +46,8 @@ class ChatView(LoginRequiredMixin, View):
         }
 
 
-class ConversationCreateView(LoginRequiredMixin, View):
-    """Crée une conversation vide (titre posé à la première question)."""
-
-    def post(self, request):
-        conversation = Conversation.objects.create(user=request.user)
-        return redirect("chat_detail", pk=conversation.pk)
-
-
 class ConversationDetailView(ChatView):
-    """Affiche une conversation précise (filtrée par utilisateur)."""
+    """Coquille HTML d'une conversation précise (deep-link, filtrée par utilisateur)."""
 
     def get(self, request, pk):
         conversations = request.user.conversations.all()
@@ -66,20 +57,8 @@ class ConversationDetailView(ChatView):
         )
 
 
-class ConversationDeleteView(LoginRequiredMixin, View):
-    """Supprime une conversation (POST seulement)."""
-
-    def post(self, request, pk):
-        conversation = get_object_or_404(Conversation, pk=pk, user=request.user)
-        conversation.delete()
-        # Requête HTMX : rediriger le navigateur via un en-tête dédié.
-        if request.headers.get("HX-Request"):
-            return HttpResponse("", status=204, headers={"HX-Redirect": reverse("chat")})
-        return redirect("chat")
-
-
 class SendView(LoginRequiredMixin, View):
-    """Envoie une question : SSE si STREAMING_ENABLED, sinon fragment HTML."""
+    """Envoie une question : SSE si STREAMING_ENABLED, sinon un JSON unique."""
 
     def post(self, request, pk):
         conversation = get_object_or_404(Conversation, pk=pk, user=request.user)
@@ -104,7 +83,13 @@ class SendView(LoginRequiredMixin, View):
             response["X-Accel-Buffering"] = "no"  # pas de tampon côté proxy
             return response
         message = service.ask(conversation, question)
-        return render(request, "chatbot/partials/_message.html", {"message": message})
+        return JsonResponse(
+            {
+                "role": message.role,
+                "content": message.content,
+                "sources": message.sources,
+            }
+        )
 
 
 class HealthView(View):

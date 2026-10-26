@@ -23,6 +23,10 @@ docs/*.pdf
 .coverage
 htmlcov/
 
+# Front (build Vite : assets reconstruits via npm run build, non commités)
+frontend/node_modules/
+static/chatbot/app/
+
 # IDE / OS
 .idea/
 .vscode/

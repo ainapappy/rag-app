@@ -1,6 +1,0 @@
-<div class="message {{ message.role }}" {% if message.pk %}data-message-id="{{ message.pk }}"{% endif %}>
-    <div class="content">{{ message.content }}</div>
-    {% if message.role == "assistant" and message.sources %}
-        {% include "chatbot/partials/_sources.html" with sources=message.sources %}
-    {% endif %}
-</div>

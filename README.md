@@ -31,6 +31,8 @@ requis qu'en local — en production, tout passe par une API distante.
 - Python **3.11+**, Git, [uv](https://docs.astral.sh/uv/) (optionnel mais rapide).
 - Local : [Ollama](https://ollama.com) avec `llama3.2:3b` et `nomic-embed-text`
   (`ollama pull …`). Production : une API compatible OpenAI.
+- Pour développer ou construire le front : **Node.js 20+** et npm (inutiles à
+  l'exécution une fois les assets construits).
 
 ## Installation locale
 
@@ -55,9 +57,37 @@ python manage.py migrate
 python manage.py createsuperuser
 python manage.py ingest docs/
 
-# 7. Démarrer
+# 7. Construire le front (Vue 3 + Tailwind ; requis une fois)
+cd frontend ; npm ci ; npm run build ; cd ..
+
+# 8. Démarrer
 python manage.py runserver               # http://127.0.0.1:8000
 ```
+
+## Développement front
+
+L'interface du chat vit dans [frontend/](frontend/) : **Vue 3 + TypeScript
+strict**, **Reka UI** (composants headless accessibles) et **Tailwind CSS v4**,
+empilés par Vite. Django rend la coquille HTML ; Vue monte sur `#chat-app`
+(`chatbot/templates/chatbot/chat.html`). Les assets construits sortent dans
+`static/chatbot/app/` (non commités) et sont résolus via le manifest Vite
+(`chatbot/templatetags/vite.py`) — jamais de nom de fichier en dur.
+
+```powershell
+cd frontend
+npm ci                      # ≈ composer install (versions du package-lock.json)
+npm run dev                 # hot reload ; définir FRONTEND_DEV_URL=http://localhost:5173 dans .env
+npm run build               # production (puis manage.py collectstatic)
+npm run typecheck           # vue-tsc (≈ PHPStan du front)
+npm run lint                # eslint + prettier
+npm run test                # vitest (parseur SSE)
+```
+
+Structure : `src/api/` (fetch/CSRF, sans état) · `src/composables/` (état
+réactif : `useChat`, `useConversations`) · `src/lib/sse.ts` (parseur SSE pur,
+testé) · `src/types/` · `src/components/{chat,conversations,ui}/`. Les
+endpoints JSON de session sont sous `chat/api/conversations/` ; le protocole
+SSE (`sources` / `token` / `done` / `error`) est inchangé.
 
 ## Configuration (`.env`)
 
@@ -124,6 +154,7 @@ pytest -m integration           # tests réels (Ollama requis)
 ruff check .                    # lint (max 100 colonnes)
 python manage.py check --deploy # audit production (avec DJANGO_DEBUG=False)
 python manage.py makemigrations --check
+# Front (depuis frontend/) : npm run typecheck, lint, test
 ```
 
 ## Évaluation
