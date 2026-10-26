@@ -1,0 +1,48 @@
+{% load static vite %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{% block title %}rag-app — Chat{% endblock %}</title>
+    {% if frontend_dev_url %}
+        {# Mode développement front : assets servis par le serveur Vite (hot reload). #}
+        <script type="module" src="{{ frontend_dev_url }}/@vite/client"></script>
+    {% endif %}
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+<header class="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
+    <span class="text-lg font-semibold tracking-tight">rag-app</span>
+    {% if user.is_authenticated %}
+        <div class="flex items-center gap-3 text-sm">
+            <span class="text-slate-500 dark:text-slate-400">{{ user.username }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="text-slate-500 underline-offset-4 hover:underline dark:text-slate-400">
+                    Déconnexion
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</header>
+<main class="flex flex-col" style="height: calc(100vh - 3.5rem);">
+    {% block content %}{% endblock %}
+</main>
+{% if frontend_dev_url %}
+    <script type="module" src="{{ frontend_dev_url }}/src/main.ts"></script>
+{% else %}
+    {% vite_css "index.html" as app_css %}
+    {% vite_js "index.html" as app_js %}
+    {% if app_js %}
+        <link rel="stylesheet" href="{{ app_css }}">
+        <script type="module" src="{{ app_js }}"></script>
+    {% else %}
+        {# Assets absents : bandeau explicite plutôt qu'une page blanche. #}
+        <div class="m-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+            Interface non construite : lancez <code>npm install &amp;&amp; npm run build</code> dans
+            <code>frontend/</code>, puis <code>collectstatic</code>.
+        </div>
+    {% endif %}
+{% endif %}
+</body>
+</html>

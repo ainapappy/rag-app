@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Django
+db.sqlite3
+staticfiles/
+data/
+media/
+
+# Documents d'exemple locaux (PDF potentiellement confidentiels)
+docs/*.pdf
+
+# Environnement
+.env
+.env.local
+
+# Outils
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Front (build Vite : assets reconstruits via npm run build, non commités)
+frontend/node_modules/
+static/chatbot/app/
+.docs
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+CLAUDE.md

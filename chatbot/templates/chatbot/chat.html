@@ -1,0 +1,7 @@
+{% extends "chatbot/base.html" %}
+{% block content %}
+{# Coquille : Vue monte ici et gère toute l'interactivité (conversations, streaming). #}
+<div id="chat-app"
+     class="mx-auto flex w-full max-w-6xl flex-1 gap-4 p-4"
+     data-streaming="{{ streaming_enabled|yesno:'1,0' }}"></div>
+{% endblock %}
