@@ -20,6 +20,10 @@ select = [
     "B",  # bugbear (pièges classiques)
 ]
 
+# Les migrations sont générées par Django : pas de reformattage imposé.
+[tool.ruff.lint.per-file-ignores]
+"chatbot/migrations/*" = ["E501"]
+
 # ---------------------------------------------------------------------------
 # Pytest — équivalent de PHPUnit
 # ---------------------------------------------------------------------------

@@ -123,6 +123,16 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ---------------------------------------------------------------------------
+# Options applicatives (lues aussi par chatbot/)
+# ---------------------------------------------------------------------------
+
+# Taille maximale d'un upload en Mo (contrat : MAX_UPLOAD_MB).
+MAX_UPLOAD_MB = env.int("MAX_UPLOAD_MB", default=10)
+
+# Indexer automatiquement un document juste après l'upload dans l'admin.
+INDEX_ON_UPLOAD = env.bool("INDEX_ON_UPLOAD", default=True)
+
+# ---------------------------------------------------------------------------
 # Journalisation
 # ---------------------------------------------------------------------------
 

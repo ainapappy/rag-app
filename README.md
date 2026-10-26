@@ -64,3 +64,19 @@ python manage.py ask "..." --top-k 6 --min-score 0.2   # expérimentation
 python manage.py chunk_preview docs/guide_rag.md --strategy paragraph
 python manage.py semantic_demo --query "un félin sommeille"
 ```
+
+## Gérer les documents depuis l'admin
+
+```powershell
+# 1. Créer un super-utilisateur (une seule fois)
+python manage.py createsuperuser
+
+# 2. Lancer le serveur et ouvrir http://127.0.0.1:8000/admin/
+python manage.py runserver
+```
+
+Dans **Documents** : « Ajouter » pour téléverser un `.txt`, `.md` ou `.pdf`
+(indexation automatique après l'upload si `INDEX_ON_UPLOAD=True`), statut et
+nombre de chunks dans la liste, actions **Indexer / Retirer de l'index /
+Réindexer** sur la sélection. La suppression retire aussi les chunks de
+l'index et le fichier du disque.
