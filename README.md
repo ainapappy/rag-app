@@ -1,150 +1,167 @@
 # rag-app
 
-Application RAG (documents + mini chatbot) en **Django**, avec un LLM local
-(**Ollama**) en développement et un **LLM distant configurable** (API compatible
-OpenAI) en production. Le cœur RAG est en Python pur dans `rag_core/` ; Django
-est une couche mince dans `chatbot/`.
+Application **RAG** (Retrieval-Augmented Generation) : déposez des documents,
+posez vos questions en français, obtenez des réponses **uniquement à partir de
+ces documents**, avec leurs sources. Cœur RAG en Python pur (`rag_core/`),
+interface Django (`chatbot/`), LLM local **Ollama** en développement, **LLM
+distant** (API compatible OpenAI) en production.
 
-## Installation locale (Windows PowerShell)
+## Architecture
 
-```powershell
-# 1. Cloner le dépôt et se placer dedans
-cd rag-app
-
-# 2. Créer le venv (≈ vendor/ isolé par projet)
-uv venv .venv
-# ou : python -m venv .venv
-
-# 3. Activer le venv (si bloqué : Set-ExecutionPolicy -Scope CurrentUser RemoteSigned)
-.venv\Scripts\Activate.ps1
-
-# 4. Installer les dépendances
-pip install -r requirements-dev.txt
-# Chroma (optionnel, lourd — l'index « simple » est le défaut) :
-# pip install -r requirements-chroma.txt
-
-# 5. Copier la config locale et adapter si besoin
-Copy-Item .env.example .env
-
-# 6. Préparer la base et lancer
-python manage.py migrate
-python manage.py runserver   # http://127.0.0.1:8000
 ```
+┌──────────────────────────  Django (couche fine)  ─────────────────────────┐
+│  chatbot/  admin (documents)  chat web (SSE)  API JSON (django-ninja)     │
+│  models: Document, Conversation, Message, ApiKey                          │
+│  services: DocumentIndexingService, ChatService, ApiChatService           │
+└───────────────────────────────────┬───────────────────────────────────────┘
+                                    │ (interfaces ABC, injection par le Container)
+┌──────────────────────────  rag_core (Python pur, zéro Django) ────────────┐
+│ loaders (txt/md/pdf) → chunking (fixed/paragraph) → embeddings (OpenAI/Ollama)
+│ → vectorstore (simple: NumPy+SQLite | chroma) → retrieval (vector | hybrid BM25+RRF)
+│ → prompting (prompt strict, query rewriter) → pipeline (ingestion, RAG)
+│ evaluation (Hit@k, MRR, refus, juge LLM) · settings (pydantic-settings)
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+L'index par défaut (`simple`) ne dépend que de NumPy et SQLite ; Ollama n'est
+requis qu'en local — en production, tout passe par une API distante.
 
 ## Prérequis
 
-- Python 3.11+, Git, [uv](https://docs.astral.sh/uv/) (optionnel mais recommandé).
-- [Ollama](https://ollama.com) avec les modèles :
-  ```powershell
-  ollama pull llama3.2:3b
-  ollama pull nomic-embed-text
-  ```
+- Python **3.11+**, Git, [uv](https://docs.astral.sh/uv/) (optionnel mais rapide).
+- Local : [Ollama](https://ollama.com) avec `llama3.2:3b` et `nomic-embed-text`
+  (`ollama pull …`). Production : une API compatible OpenAI.
 
-## Développement
-
-- Tests : `pytest` (aucun réseau requis).
-- Lint : `ruff check .`
-- Conventions du projet : voir [CONVENTIONS.md](CONVENTIONS.md).
-
-## Utilisation en ligne de commande
+## Installation locale
 
 ```powershell
-# 1. Indexer des documents (idempotent : les fichiers inchangés sont sautés)
-python manage.py ingest docs/
-python manage.py ingest docs/ --list     # voir les sources indexées
-python manage.py ingest docs/ --reset    # reconstruire (obligatoire si EMBED_MODEL change)
+# 1. Cloner et entrer dans le projet
+git clone <depot> rag-app ; cd rag-app
 
-# 2. Poser une question (réponse uniquement à partir des documents, sources citées)
-python manage.py ask "Combien de jours de congés par an ?"
-python manage.py ask "..." --stream            # réponse progressive
-python manage.py ask "..." --show-context      # voir les chunks retrouvés
-python manage.py ask "..." --top-k 6 --min-score 0.2   # expérimentation
+# 2. Créer le venv (≈ vendor/ isolé par projet)
+uv venv .venv          # ou : python -m venv .venv
 
-# 3. Débug du découpage et de la sémantique
-python manage.py chunk_preview docs/guide_rag.md --strategy paragraph
-python manage.py semantic_demo --query "un félin sommeille"
-```
+# 3. L'activer — PowerShell (.venv\Scripts\Activate.ps1 ; si bloqué :
+#    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned) — bash : source .venv/bin/activate
 
-## Gérer les documents depuis l'admin
+# 4. Installer (requirements.txt est déjà épinglé)
+pip install -r requirements-dev.txt      # prod seule : requirements.txt
 
-```powershell
-# 1. Créer un super-utilisateur (une seule fois)
+# 5. Configurer
+Copy-Item .env.example .env              # macOS/Linux : cp .env.example .env
+
+# 6. Base, super-utilisateur, documents d'exemple
+python manage.py migrate
 python manage.py createsuperuser
+python manage.py ingest docs/
 
-# 2. Lancer le serveur et ouvrir http://127.0.0.1:8000/admin/
-python manage.py runserver
+# 7. Démarrer
+python manage.py runserver               # http://127.0.0.1:8000
 ```
 
-Dans **Documents** : « Ajouter » pour téléverser un `.txt`, `.md` ou `.pdf`
-(indexation automatique après l'upload si `INDEX_ON_UPLOAD=True`), statut et
-nombre de chunks dans la liste, actions **Indexer / Retirer de l'index /
-Réindexer** sur la sélection. La suppression retire aussi les chunks de
-l'index et le fichier du disque.
+## Configuration (`.env`)
 
-## Utiliser le chatbot
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | — | Clé secrète Django (générée localement) |
+| `DJANGO_DEBUG` | `True` | `False` en production |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Hôtes autorisés |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | (vide) | Origines `https://…` de confiance |
+| `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | Ollama / `ollama` / `llama3.2:3b` | Chat |
+| `LLM_TEMPERATURE` | `0.2` | Température |
+| `EMBED_BASE_URL` / `EMBED_API_KEY` / `EMBED_MODEL` | Ollama / `ollama` / `nomic-embed-text` | Embeddings |
+| `EMBED_BATCH_SIZE` | `32` | Textes par appel d'embeddings |
+| `VECTOR_STORE` / `VECTOR_STORE_PATH` | `simple` / `data/index` | Magasin vectoriel |
+| `CHUNKER_STRATEGY` / `CHUNK_SIZE` / `CHUNK_OVERLAP` | `fixed` / 700 / 100 | Découpage |
+| `TOP_K` / `MIN_SCORE` | 4 / 0.65¹ | Recherche |
+| `HISTORY_WINDOW` / `STREAMING_ENABLED` | 6 / `True` | Chat |
+| `RETRIEVER` | `vector` | `vector` ou `hybrid` (BM25 + RRF) |
+| `INDEX_ON_UPLOAD` / `MAX_UPLOAD_MB` | `True` / 10 | Admin/uploads |
+| `RATE_LIMIT_PER_MINUTE` | 30 | API, chat, login |
+| `DJANGO_LOG_LEVEL` | `INFO` | Journaux |
 
-1. Lancer `python manage.py runserver` et ouvrir http://127.0.0.1:8000/ .
-2. Se connecter (compte créé via `createsuperuser` ou un `User` de test).
-3. Cliquer « + Nouvelle conversation », poser une question : la réponse
-   s'affiche progressivement (si `STREAMING_ENABLED=True`) avec ses sources
-   dépliables sous le message.
-4. Les questions de suivi sont reformulées automatiquement (ex. « et pour les
-   congés maladie ? » après une question sur les congés) — visible dans les
-   logs Django.
-5. L'historique persiste (SQLite) ; chaque utilisateur ne voit que ses
-   conversations.
+¹ Ajusté localement pour nomic-embed-text après mesure (voir
+[docs/EVALUATION.md](docs/EVALUATION.md)).
 
-Note streaming : en WSGI, un worker reste occupé pendant la génération —
-désactivez `STREAMING_ENABLED` en production si nécessaire.
+## Utilisation
+
+- **Admin documents** : `/admin/` — upload `.txt`/`.md`/`.pdf` (indexation
+  automatique), statut, actions Indexer / Réindexer / Retirer de l'index.
+- **Chat web** : `/chat/` — conversations persistantes, questions de suivi
+  reformulées, réponses en streaming avec sources dépliables.
+- **API JSON** : `/api/` — clé via `python manage.py create_api_key <nom>`
+  (affichée une seule fois) ; docs OpenAPI sur `/api/docs` ; exemples dans la
+  section « Utiliser l'API » plus bas.
+
+```powershell
+# Commandes principales
+python manage.py ingest docs/ --list    # indexation idempotente
+python manage.py ask "…question…" --stream
+python manage.py chunk_preview docs/guide_rag.md
+python manage.py semantic_demo --query "un félin sommeille"
+python manage.py eval_rag               # qualité : Hit@k, MRR, refus
+python manage.py backup_data            # archive data/ + base SQLite
+```
 
 ## Utiliser l'API
 
 ```powershell
-# 1. Créer une clé d'API (affichée UNE SEULE FOIS)
-python manage.py create_api_key integration
-# → conservez la valeur affichée dans $env:API_KEY
-
-# 2. Poser une question
-curl -H "X-API-Key: %API_KEY%" -H "Content-Type: application/json" `
+python manage.py create_api_key integration      # clé affichée UNE FOIS
+curl -H "X-API-Key: <cle>" -H "Content-Type: application/json" `
      -X POST http://127.0.0.1:8000/api/chat `
-     -d '{"question":"Combien de jours de congés par an ?"}'
-
-# 3. Lister / téléverser / supprimer des documents
-curl -H "X-API-Key: %API_KEY%" http://127.0.0.1:8000/api/documents
-curl -X POST -H "X-API-Key: %API_KEY%" -F "title=Guide" -F "file=@docs/guide_rag.md" `
-     http://127.0.0.1:8000/api/documents
-
-# 4. Documentation OpenAPI interactive (sans authentification)
-start http://127.0.0.1:8000/api/docs
+     -d '{"question":"Combien de jours de conges payes par an ?"}'
+curl -H "X-API-Key: <cle>" http://127.0.0.1:8000/api/documents
 ```
 
-Codes : 401 (clé absente/invalide), 422 (validation), 429 (`Retry-After`,
-limite `RATE_LIMIT_PER_MINUTE`), 502 (erreur métier RAG, message stable
-`{"detail": "..."}`). `GET /api/health` est public.
+Codes : 401 clé invalide · 422 validation · 429 `Retry-After` · 502 erreur
+métier RAG (`{"detail": "…"}`) · `GET /health/` public · `?deep=1` staff.
 
-Limites connues : avec le cache local (`LocMemCache`), les compteurs de
-rate-limit sont par processus — en production, configurer un cache partagé
-(voir `chatbot/ratelimit.py`). Les en-têtes HSTS/cookies sécurisés ne sont
-actifs qu'avec `DEBUG=False` ; la redirection HTTPS (`SECURE_SSL_REDIRECT`)
-et `SECURE_PROXY_SSL_HEADER` sont à valider avec PlanetHoster avant
-activation (voir `config/settings.py`). Les 3 avertissements restants de
-`check --deploy` (SECURE_SSL_REDIRECT, HSTS subdomains/preload) sont
-volontairement différés : ils supposent un HTTPS opérationnel et vérifié
-sur le domaine final, sous-domaines compris.
-
-## Évaluer la qualité
+## Tests et qualité
 
 ```powershell
-python manage.py eval_rag                     # Hit@k, MRR, taux de bons refus
-python manage.py eval_rag --retriever hybrid  # comparer le BM25 + RRF
-python manage.py eval_rag --sweep             # grille chunk/overlap/top_k (index temporaire)
-python manage.py eval_rag --with-llm --judge  # rappel mots-clés + fidélité (indicatif)
+pytest                          # 220+ tests, sans réseau ni Ollama
+pytest -m integration           # tests réels (Ollama requis)
+ruff check .                    # lint (max 100 colonnes)
+python manage.py check --deploy # audit production (avec DJANGO_DEBUG=False)
+python manage.py makemigrations --check
 ```
 
-Le jeu de questions vit dans `eval/questions.json` (15 questions, dont 3 hors
-corpus). Bilan complet et réglages retenus : [docs/EVALUATION.md](docs/EVALUATION.md).
+## Évaluation
 
-## Journaux
+`python manage.py eval_rag [--retriever hybrid] [--sweep] [--with-llm --judge]`
+mesure Hit@k, MRR, taux de bons refus et compare les réglages. Bilan :
+[docs/EVALUATION.md](docs/EVALUATION.md).
 
-`data/logs/app.log` (rotation 5 Mo × 3) en plus de la console ; un filtre
-masque les clés d'API / tokens (`X-API-Key:`, `Authorization:`, …).
+## Déploiement
+
+Procédure complète, checklist, plan B VPS (gunicorn + nginx) et dépannage :
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Point d'entrée WSGI :
+`passenger_wsgi.py`. Santé : `/health/`.
+
+## Sécurité
+
+- Clés d'API stockées **hachées** (sha256, comparaison temps constant) ;
+  clé en clair affichée une seule fois.
+- Secrets jamais dans Git ni les logs (filtre de masquage sur `X-API-Key`,
+  `Authorization`, …).
+- Rate limiting (API, chat, login), validation d'uploads (extension, taille,
+  octets magiques PDF, nom nettoyé), en-têtes de sécurité ; HSTS/cookies
+  sécurisés actifs quand `DEBUG=False`.
+- Les 3 avertissements restants de `check --deploy` (SSL redirect, HSTS
+  subdomains/preload) sont volontairement différés : ils supposent un HTTPS
+  validé sur le domaine final.
+
+## Limites connues
+
+- Indexation dans la requête admin (pas de tâche d'arrière-plan) : un gros
+  PDF peut être lent.
+- Rate limit par processus avec le cache local : prévoir un cache partagé en
+  multi-processus (`chatbot/ratelimit.py`).
+- OCR non supporté (PDF scannés refusés) ; extraction PDF imparfaite possible.
+- Échantillon d'évaluation réduit (15 questions) : chiffres indicatifs.
+
+## Pistes d'évolution
+
+- Tâches d'arrière-plan (`django-q2`) pour l'indexation.
+- PostgreSQL + pgvector à la place de l'index `simple`.
+- Re-ranking des résultats, OCR pour les PDF scannés, cache sémantique.

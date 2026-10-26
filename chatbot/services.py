@@ -17,6 +17,7 @@ from rag_core.container import Container, get_container
 from rag_core.exceptions import RagError
 from rag_core.models import ChatMessage
 from rag_core.pipeline.rag import NO_ANSWER_MESSAGE
+from rag_core.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -166,3 +167,29 @@ class ChatService:
 def _sse(event: str, data: str) -> str:
     """Formate un événement SSE complet (`event:` + `data:` + ligne vide)."""
     return f"event: {event}\ndata: {data}\n\n"
+
+
+def ping_llm(timeout_seconds: float = 5.0) -> str:
+    """Appel LLM minimal pour le health check `?deep=1` (timeout court).
+
+    Renvoie « ok » ou lève `RagError` ; ne journalise aucun secret.
+    """
+    from openai import OpenAI, OpenAIError
+
+    from rag_core.exceptions import LLMError
+
+    settings = get_settings()
+    client = OpenAI(
+        base_url=settings.llm_base_url,
+        api_key=settings.llm_api_key,
+        timeout=timeout_seconds,
+    )
+    try:
+        client.chat.completions.create(
+            model=settings.llm_model,
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=1,
+        )
+    except OpenAIError as exc:
+        raise LLMError(f"LLM injoignable ({exc.__class__.__name__}).") from exc
+    return "ok"

@@ -72,6 +72,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise : sert les statiques compressés depuis l'application Python
+    # (pratique quand on ne contrôle pas le serveur web, ex. mutualisé).
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -144,9 +147,20 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Fichiers statiques de l'application (CSS/JS du chat, vendor).
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# Compression à la collecte (collectstatic) ; WhiteNoise les sert.
+# (Sans manifest : plus tolérant si collectstatic n'a pas encore tourné.)
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
+
 MEDIA_ROOT = BASE_DIR / "data" / "media"
 
 MEDIA_URL = "/media/"
+
+# Dossiers de données : créés au démarrage s'ils manquent (hébergeur neuf).
+for _data_dir in (MEDIA_ROOT, BASE_DIR / "data" / "index", BASE_DIR / "data" / "logs"):
+    _data_dir.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Authentification (chat accessible uniquement connecté)

@@ -6,14 +6,21 @@ Toutes les requêtes filtrent par `user` : une conversation d'autrui → 404.
 
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponse, HttpResponseBadRequest, StreamingHttpResponse
+from django.http import (
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    JsonResponse,
+    StreamingHttpResponse,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
 from chatbot.models import Conversation
 from chatbot.ratelimit import default_limiter
-from chatbot.services import ChatService
+from chatbot.services import ChatService, ping_llm
+from rag_core.exceptions import RagError
 from rag_core.settings import get_settings
 
 
@@ -98,6 +105,34 @@ class SendView(LoginRequiredMixin, View):
             return response
         message = service.ask(conversation, question)
         return render(request, "chatbot/partials/_message.html", {"message": message})
+
+
+class HealthView(View):
+    """Sonde de santé : `/health/` (public), `?deep=1` réservé au staff."""
+
+    def get(self, request):
+        if request.GET.get("deep") == "1" and not request.user.is_staff:
+            return HttpResponseForbidden("Le check approfondi est réservé au staff.")
+
+        payload: dict = {"status": "ok", "db": True}
+        try:
+            from rag_core.container import get_container
+
+            store = get_container().store
+            payload["index_chunks"] = store.count()
+            payload["embedding_model"] = store.get_embedding_model()
+        except RagError:
+            payload["status"] = "degraded"
+            payload["index_chunks"] = None
+            payload["embedding_model"] = None
+
+        if request.GET.get("deep") == "1":
+            try:
+                payload["llm"] = ping_llm()
+            except RagError as exc:
+                payload["llm"] = str(exc)
+                payload["status"] = "degraded"
+        return JsonResponse(payload)
 
 
 class RateLimitedLoginView(auth_views.LoginView):
