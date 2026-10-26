@@ -106,6 +106,7 @@ async function confirmDeletion(): Promise<void> {
           :messages="messages"
           :error="loadError ?? error"
           :has-conversation="current !== null"
+          :is-streaming="isStreaming"
         />
         <Composer :disabled="isStreaming || current === null" @send="send" />
       </section>
