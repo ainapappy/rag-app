@@ -1,0 +1,17 @@
+[
+  {"id": "q01", "question": "Combien de jours ouvrés de congés annuels payés par an ?", "expected_source": "politique_conges.txt", "expected_page": null, "expected_keywords": ["25 jours"], "should_answer": true},
+  {"id": "q02", "question": "Quel est le préavis pour un congé de 6 à 15 jours ouvrés ?", "expected_source": "politique_conges.txt", "expected_page": null, "expected_keywords": ["15 jours"], "should_answer": true},
+  {"id": "q03", "question": "Combien de jours de congés non posés peuvent être reportés ?", "expected_source": "politique_conges.txt", "expected_page": null, "expected_keywords": ["8 jours"], "should_answer": true},
+  {"id": "q04", "question": "Quel pourcentage du salaire est couvert pendant les 5 premiers jours d'arret maladie ?", "expected_source": "politique_conges.txt", "expected_page": null, "expected_keywords": ["70 %"], "should_answer": true},
+  {"id": "q05", "question": "Combien de jours payés pour un mariage ?", "expected_source": "politique_conges.txt", "expected_page": null, "expected_keywords": ["4 jours"], "should_answer": true},
+  {"id": "q06", "question": "Quel est le pourcentage de prime de fidélité versée par la coopérative Vanillia ?", "expected_source": "vanille_madagascar.md", "expected_page": null, "expected_keywords": ["5 %"], "should_answer": true},
+  {"id": "q07", "question": "Dans quelle région de Madagascar cultive-t-on la vanille ?", "expected_source": "vanille_madagascar.md", "expected_page": null, "expected_keywords": ["Sava"], "should_answer": true},
+  {"id": "q08", "question": "Combien de producteurs sont membres de la coopérative Vanillia ?", "expected_source": "vanille_madagascar.md", "expected_page": null, "expected_keywords": ["240 producteurs"], "should_answer": true},
+  {"id": "q09", "question": "A quelle température se fait l'échaudage des gousses de vanille ?", "expected_source": "vanille_madagascar.md", "expected_page": null, "expected_keywords": ["65"], "should_answer": true},
+  {"id": "q10", "question": "Sur combien d'hectares la coopérative cultive-t-elle la vanille ?", "expected_source": "vanille_madagascar.md", "expected_page": null, "expected_keywords": ["180 hectares"], "should_answer": true},
+  {"id": "q11", "question": "C'est quoi exactement un RAG ?", "expected_source": "guide_rag.md", "expected_page": null, "expected_keywords": ["Retrieval-Augmented Generation"], "should_answer": true},
+  {"id": "q12", "question": "Quelles sont les grandes etapes de la transformation de la vanille apres la recolte ?", "expected_source": "vanille_madagascar.md", "expected_page": null, "expected_keywords": ["échaudage", "étuvage", "séchage", "affinage"], "should_answer": true},
+  {"id": "q13", "question": "Quelle est la capitale de l'Australie ?", "expected_source": null, "expected_page": null, "expected_keywords": [], "should_answer": false},
+  {"id": "q14", "question": "Combien d'employés travaille chez Tekavo ?", "expected_source": null, "expected_page": null, "expected_keywords": [], "should_answer": false},
+  {"id": "q15", "question": "Quel est le prix d'un billet d'avion pour aller à Madagascar ?", "expected_source": null, "expected_page": null, "expected_keywords": [], "should_answer": false}
+]

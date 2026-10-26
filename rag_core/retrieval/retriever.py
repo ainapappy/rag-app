@@ -18,14 +18,14 @@ class Retriever:
         top_k: int,
         min_score: float,
     ) -> None:
-        self._embeddings = embeddings
-        self._store = store
-        self._top_k = top_k
-        self._min_score = min_score
+        self.embeddings = embeddings
+        self.store = store
+        self.top_k = top_k
+        self.min_score = min_score
 
     def retrieve(self, query: str) -> list[SearchResult]:
         """Renvoie au plus `top_k` résultats au-dessus de `min_score`, triés."""
-        query_vector = self._embeddings.embed_query(query)
-        results = self._store.search(query_vector, self._top_k)
-        relevant = [result for result in results if result.score >= self._min_score]
+        query_vector = self.embeddings.embed_query(query)
+        results = self.store.search(query_vector, self.top_k)
+        relevant = [result for result in results if result.score >= self.min_score]
         return sorted(relevant, key=lambda result: result.score, reverse=True)

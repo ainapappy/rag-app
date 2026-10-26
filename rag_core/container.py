@@ -80,7 +80,19 @@ class Container:
 
     @cached_property
     def retriever(self):
-        """Retriever vectoriel configuré par TOP_K et MIN_SCORE (lazy)."""
+        """Retriever vectoriel ou hybride selon RETRIEVER (lazy)."""
+        if self._settings.retriever == "hybrid":
+            from rag_core.retrieval.bm25 import Bm25Index
+            from rag_core.retrieval.hybrid import HybridRetriever
+
+            bm25 = Bm25Index.from_store(self.store)
+            return HybridRetriever(
+                self.embeddings,
+                self.store,
+                bm25,
+                self._settings.top_k,
+                self._settings.min_score,
+            )
         return Retriever(
             self.embeddings, self.store, self._settings.top_k, self._settings.min_score
         )

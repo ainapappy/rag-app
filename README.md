@@ -132,6 +132,18 @@ activation (voir `config/settings.py`). Les 3 avertissements restants de
 volontairement différés : ils supposent un HTTPS opérationnel et vérifié
 sur le domaine final, sous-domaines compris.
 
+## Évaluer la qualité
+
+```powershell
+python manage.py eval_rag                     # Hit@k, MRR, taux de bons refus
+python manage.py eval_rag --retriever hybrid  # comparer le BM25 + RRF
+python manage.py eval_rag --sweep             # grille chunk/overlap/top_k (index temporaire)
+python manage.py eval_rag --with-llm --judge  # rappel mots-clés + fidélité (indicatif)
+```
+
+Le jeu de questions vit dans `eval/questions.json` (15 questions, dont 3 hors
+corpus). Bilan complet et réglages retenus : [docs/EVALUATION.md](docs/EVALUATION.md).
+
 ## Journaux
 
 `data/logs/app.log` (rotation 5 Mo × 3) en plus de la console ; un filtre
