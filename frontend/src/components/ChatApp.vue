@@ -14,8 +14,15 @@ const { conversations, currentId, current, load, create, remove, select, fetchMe
 const messages = ref<ChatMessage[]>([]);
 const { isStreaming, error, send } = useChat(currentId, messages);
 const pendingDeletion = ref<Conversation | null>(null);
+const loadError = ref<string | null>(null);
 
-onMounted(load);
+onMounted(async () => {
+  try {
+    await load();
+  } catch {
+    loadError.value = "Impossible de charger les conversations.";
+  }
+});
 
 // Changement de conversation : on recharge son historique.
 watch(currentId, async (id) => {
@@ -23,7 +30,11 @@ watch(currentId, async (id) => {
     messages.value = [];
     return;
   }
-  messages.value = await fetchMessages(id);
+  try {
+    messages.value = await fetchMessages(id);
+  } catch {
+    loadError.value = "Impossible de charger la conversation.";
+  }
 });
 
 async function confirmDeletion(): Promise<void> {
@@ -48,7 +59,11 @@ async function confirmDeletion(): Promise<void> {
     <section
       class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
     >
-      <MessageList :messages="messages" :error="error" :has-conversation="current !== null" />
+      <MessageList
+        :messages="messages"
+        :error="loadError ?? error"
+        :has-conversation="current !== null"
+      />
       <Composer :disabled="isStreaming || current === null" @send="send" />
     </section>
     <ConfirmDeleteDialog

@@ -76,11 +76,19 @@ empilés par Vite. Django rend la coquille HTML ; Vue monte sur `#chat-app`
 ```powershell
 cd frontend
 npm ci                      # ≈ composer install (versions du package-lock.json)
-npm run dev                 # hot reload ; définir FRONTEND_DEV_URL=http://localhost:5173 dans .env
+npm run dev                 # hot reload sur http://localhost:5173
 npm run build               # production (puis manage.py collectstatic)
 npm run typecheck           # vue-tsc (≈ PHPStan du front)
 npm run lint                # eslint + prettier
 npm run test                # vitest (parseur SSE)
+```
+
+En mode `npm run dev`, mettre aussi dans `.env` (le proxy Vite transmet
+`/chat`, `/accounts`, `/admin` vers Django sur `:8000`) :
+
+```env
+FRONTEND_DEV_URL=http://localhost:5173
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:5173
 ```
 
 Structure : `src/api/` (fetch/CSRF, sans état) · `src/composables/` (état

@@ -23,5 +23,14 @@ export default defineConfig({
     strictPort: true,
     // Obligatoire : sans origin, Django bloquerait les assets du mode dev.
     origin: "http://localhost:5173",
+    // En dev, l'app tourne sur :5173 mais le backend est Django (:8000) :
+    // les fetch relatifs (/chat/..., /accounts/...) sont transmis à Django
+    // (session et CSRF conservés). Nécessite dans .env côté Django :
+    // DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:5173
+    proxy: {
+      "/chat": "http://127.0.0.1:8000",
+      "/accounts": "http://127.0.0.1:8000",
+      "/admin": "http://127.0.0.1:8000",
+    },
   },
 });
