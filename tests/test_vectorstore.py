@@ -1,5 +1,6 @@
 """Suite de contrat : mêmes tests sur SimpleVectorStore et ChromaVectorStore."""
 
+import threading
 from pathlib import Path
 
 import pytest
@@ -178,3 +179,22 @@ def test_persistence(tmp_path):
         assert reader.get_source_hash("doc.txt") == "h9"
         results = reader.search(provider.embed_query("texte persistant"), top_k=1)
         assert results[0].chunk.text == "texte persistant"
+
+
+def test_simple_store_usable_from_another_thread(tmp_path):
+    """Regression : le conteneur est un singleton partagé entre les threads du
+    serveur Django — la connexion doit rester utilisable depuis un thread
+    différent de celui qui a créé le store."""
+    store = SimpleVectorStore(tmp_path / "index")
+    provider = FakeEmbeddingProvider(dimension=16)
+    texts = ["texte inter-threads"]
+    results: list = []
+
+    def work() -> None:
+        store.add(_chunks_for("doc1.txt", texts, "h1"), provider.embed(texts))
+        results.append(store.search(provider.embed_query("inter-threads"), top_k=1))
+
+    thread = threading.Thread(target=work)
+    thread.start()
+    thread.join()
+    assert [r.chunk.text for r in results[0]] == texts

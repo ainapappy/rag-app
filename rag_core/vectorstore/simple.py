@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -36,8 +37,15 @@ class SimpleVectorStore(VectorStore):
 
     def __init__(self, path: Path) -> None:
         self._dir = ensure_directory(path)
-        self._conn = sqlite3.connect(self._dir / "index.sqlite3")
-        with self._conn:
+        # Le conteneur est un singleton partagé entre les threads du serveur
+        # Django (multithread, même en dev) : une connexion SQLite ne peut être
+        # utilisée que par le thread qui l'a créée, sauf `check_same_thread=False`
+        # — et le partage impose alors un verrou pour sérialiser chaque accès.
+        self._lock = threading.Lock()
+        self._conn = sqlite3.connect(
+            self._dir / "index.sqlite3", check_same_thread=False
+        )
+        with self._lock, self._conn:
             self._conn.execute(_SCHEMA_CHUNKS)
             self._conn.execute(_SCHEMA_META)
 
@@ -46,7 +54,7 @@ class SimpleVectorStore(VectorStore):
     def add(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         if len(chunks) != len(embeddings):
             raise ValueError("chunks et embeddings doivent avoir la même taille")
-        with self._conn:
+        with self._lock, self._conn:
             for chunk, embedding in zip(chunks, embeddings, strict=True):
                 blob = np.asarray(embedding, dtype=np.float32).tobytes()
                 self._conn.execute(
@@ -73,21 +81,22 @@ class SimpleVectorStore(VectorStore):
                 )
 
     def delete_by_source(self, source: str) -> int:
-        with self._conn:
+        with self._lock, self._conn:
             cursor = self._conn.execute("DELETE FROM chunks WHERE source = ?", (source,))
         return cursor.rowcount
 
     def clear(self) -> None:
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute("DELETE FROM chunks")
             self._conn.execute("DELETE FROM meta")
 
     # -- Recherche ----------------------------------------------------------------
 
     def search(self, query_embedding: list[float], top_k: int) -> list[SearchResult]:
-        rows = self._conn.execute(
-            "SELECT id, source, page, chunk_index, text, metadata, embedding FROM chunks"
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, source, page, chunk_index, text, metadata, embedding FROM chunks"
+            ).fetchall()
         if not rows or top_k <= 0:
             return []
         matrix = np.frombuffer(
@@ -112,39 +121,46 @@ class SimpleVectorStore(VectorStore):
     # -- Lecture ----------------------------------------------------------------------
 
     def count(self) -> int:
-        return int(self._conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0])
+        with self._lock:
+            return int(self._conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0])
 
     def list_sources(self) -> list[str]:
-        rows = self._conn.execute(
-            "SELECT DISTINCT source FROM chunks ORDER BY source"
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT DISTINCT source FROM chunks ORDER BY source"
+            ).fetchall()
         return [row[0] for row in rows]
 
     def get_source_hash(self, source: str) -> str | None:
-        row = self._conn.execute(
-            "SELECT metadata FROM chunks WHERE source = ? LIMIT 1", (source,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT metadata FROM chunks WHERE source = ? LIMIT 1", (source,)
+            ).fetchone()
         if row is None:
             return None
         metadata = json.loads(row[0])
         return metadata.get("file_hash")
 
     def iter_chunks(self) -> Iterator[Chunk]:
-        cursor = self._conn.execute(
-            "SELECT id, source, page, chunk_index, text, metadata FROM chunks ORDER BY source, "
-            "chunk_index"
-        )
-        for row in cursor:
+        # Les lignes sont matérialisées sous le verrou : le rendu des chunks
+        # (potentiellement long) n'a pas besoin de bloquer les autres threads.
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, source, page, chunk_index, text, metadata FROM chunks "
+                "ORDER BY source, chunk_index"
+            ).fetchall()
+        for row in rows:
             yield self._row_to_chunk(row)
 
     def get_embedding_model(self) -> str | None:
-        row = self._conn.execute(
-            "SELECT value FROM meta WHERE key = 'embedding_model'"
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM meta WHERE key = 'embedding_model'"
+            ).fetchone()
         return row[0] if row else None
 
     def set_embedding_model(self, name: str) -> None:
-        with self._conn:
+        with self._lock, self._conn:
             self._conn.execute(
                 "INSERT INTO meta (key, value) VALUES ('embedding_model', ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -155,7 +171,8 @@ class SimpleVectorStore(VectorStore):
 
     def close(self) -> None:
         """Ferme la connexion SQLite (propre en fin de processus/tests)."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     @staticmethod
     def _row_to_chunk(row: tuple) -> Chunk:
