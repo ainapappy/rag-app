@@ -43,5 +43,5 @@ Données : `data/media/` (uploads), `data/index/` (index vectoriel), `db.sqlite3
 - Tests unitaires **sans réseau ni Ollama** : utiliser `FakeLLM` / `FakeEmbeddingProvider` ; marquer `@pytest.mark.integration` les tests réels.
 - POO : interfaces `ABC`, injection par constructeur, dataclasses `frozen=True`, exceptions métier.
 - Aucun secret dans Git : `.env` ignoré, `.env.example` sans vraies clés.
-- Commits en Conventional Commits (`feat:`, `fix:`, `docs:`, ...). Le développeur fait les commits lui-même.
+- Commits en Conventional Commits (`feat:`, `fix:`, `docs:`, ...). **Commit à la fin de chaque phase**, avec l'identité Git du dépôt (l'utilisateur a délégué les commits).
 - Ne jamais laisser le projet cassé : corriger tout échec de test/lint avant de continuer.
