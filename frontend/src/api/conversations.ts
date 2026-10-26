@@ -1,7 +1,7 @@
 /** Accès aux conversations : endpoints JSON de session + flux SSE d'envoi. */
 
 import type { ChatMessage, Conversation, SseEvent, StoredMessage } from "@/types/chat";
-import { ApiError, csrfToken, requestJson } from "./client";
+import { ApiError, csrfToken, notifyUnauthorized, requestJson } from "./client";
 import { createSseParser } from "@/lib/sse";
 
 interface ConversationDetailPayload {
@@ -53,6 +53,10 @@ export async function sendMessage(
     },
     body: new URLSearchParams({ question }),
   });
+  if (response.status === 401) {
+    notifyUnauthorized();
+    throw new ApiError("Session expirée.", 401);
+  }
   if (!response.ok) {
     throw new ApiError(`Envoi refusé (${response.status}).`, response.status);
   }

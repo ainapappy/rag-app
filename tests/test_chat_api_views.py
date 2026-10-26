@@ -110,10 +110,11 @@ def test_delete_own_conversation(logged_client, conversation):
     assert not Conversation.objects.filter(pk=conversation.pk).exists()
 
 
-def test_anonymous_redirects_to_login(client):
+def test_anonymous_gets_401(client):
+    """Endpoints JSON : 401 franc (pas de redirection HTML vers le login)."""
     response = client.get(reverse("chat_api_conversations"))
-    assert response.status_code == 302
-    assert reverse("login") in response.url
+    assert response.status_code == 401
+    assert response.json() == {"error": "Authentification requise."}
 
 
 def test_other_users_conversation_returns_404(client, other_user, conversation):

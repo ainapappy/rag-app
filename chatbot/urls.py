@@ -24,4 +24,7 @@ urlpatterns = [
         api_views.ConversationDetailApiView.as_view(),
         name="chat_api_conversation_detail",
     ),
+    path("chat/api/me/", api_views.MeApiView.as_view(), name="api_me"),
+    path("accounts/api/login/", api_views.LoginApiView.as_view(), name="api_login"),
+    path("accounts/api/logout/", api_views.LogoutApiView.as_view(), name="api_logout"),
 ]

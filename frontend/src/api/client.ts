@@ -18,6 +18,21 @@ export function csrfToken(): string {
   return meta?.content ?? "";
 }
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/**
+ * Enregistré par l'app au démarrage : appelé si une requête reçoit un 401
+ * (session absente ou expirée) pour afficher à nouveau le formulaire.
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
+/** Notifie la perte de session (utilisé aussi hors `requestJson`, ex. SSE). */
+export function notifyUnauthorized(): void {
+  unauthorizedHandler?.();
+}
+
 /**
  * Requête JSON avec session et CSRF ; renvoie le corps décodé.
  * `undefined` en cas de 204 (suppression).
@@ -35,6 +50,10 @@ export async function requestJson<T>(url: string, options: RequestInit = {}): Pr
       ...rest.headers,
     },
   });
+  if (response.status === 401) {
+    unauthorizedHandler?.();
+    throw new ApiError("Session expirée.", 401);
+  }
   if (!response.ok) {
     throw new ApiError(`Requête échouée (${response.status}).`, response.status);
   }

@@ -7,13 +7,85 @@ Vues fines : sérialisation → ORM/service → JsonResponse, aucune logique mé
 
 import json
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import authenticate
+from django.contrib.auth import login as auth_login
+from django.contrib.auth import logout as auth_logout
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from chatbot.models import Conversation
+from chatbot.ratelimit import default_limiter
 from chatbot.services import ChatService
+
+
+class ApiLoginRequiredMixin(View):
+    """Pour les endpoints JSON : 401 au lieu d'une redirection HTML (302).
+
+    Un `fetch` suit les redirections et récupérerait la page de connexion
+    (HTML) avec un statut 200 : le front ne pourrait pas détecter la fin de
+    session. Un 401 franc est déclenchable et interceptable.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentification requise."}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class MeApiView(View):
+    """`GET chat/api/me/` : état de session pour le front Vue.
+
+    Public (jamais de 401) : c'est le premier appel du front, il pose aussi
+    le cookie CSRF pour les POST/DELETE ultérieurs.
+    """
+
+    def get(self, request):
+        return JsonResponse(
+            {
+                "authenticated": request.user.is_authenticated,
+                "username": request.user.username if request.user.is_authenticated else None,
+            }
+        )
+
+
+class LoginApiView(View):
+    """`POST accounts/api/login/` : connexion session en JSON.
+
+    Même mécanisme que la page Django (`authenticate` + `login`) et le même
+    frein anti-force-brute par IP.
+    """
+
+    def post(self, request):
+        ip = request.META.get("REMOTE_ADDR", "unknown")
+        result = default_limiter().hit(f"login:{ip}")
+        if not result.allowed:
+            return JsonResponse(
+                {"error": "Trop de tentatives. Réessayez plus tard."},
+                status=429,
+            )
+        try:
+            payload = json.loads(request.body) if request.body else {}
+        except json.JSONDecodeError:
+            payload = {}
+        username = str(payload.get("username") or "")
+        password = str(payload.get("password") or "")
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return JsonResponse({"error": "Identifiants invalides."}, status=400)
+        auth_login(request, user)
+        return JsonResponse({"authenticated": True, "username": user.username})
+
+
+class LogoutApiView(View):
+    """`POST accounts/api/logout/` : déconnexion session (CSRF requis)."""
+
+    def post(self, request):
+        auth_logout(request)
+        return JsonResponse({"authenticated": False})
 
 
 def _conversation_data(conversation: Conversation) -> dict:
@@ -36,7 +108,7 @@ def _message_data(message) -> dict:
     }
 
 
-class ConversationListApiView(LoginRequiredMixin, View):
+class ConversationListApiView(ApiLoginRequiredMixin, View):
     """`GET` : liste des conversations de l'utilisateur ; `POST` : création."""
 
     def get(self, request):
@@ -57,7 +129,7 @@ class ConversationListApiView(LoginRequiredMixin, View):
         return JsonResponse(_conversation_data(conversation), status=201)
 
 
-class ConversationDetailApiView(LoginRequiredMixin, View):
+class ConversationDetailApiView(ApiLoginRequiredMixin, View):
     """`GET` : détail + messages ; `DELETE` : suppression (définitive)."""
 
     def get(self, request, pk):

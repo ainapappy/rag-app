@@ -16,6 +16,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, render
 from django.views import View
 
+from chatbot.api_views import ApiLoginRequiredMixin
 from chatbot.models import Conversation
 from chatbot.ratelimit import default_limiter
 from chatbot.services import ChatService, ping_llm
@@ -57,7 +58,7 @@ class ConversationDetailView(ChatView):
         )
 
 
-class SendView(LoginRequiredMixin, View):
+class SendView(ApiLoginRequiredMixin, View):
     """Envoie une question : SSE si STREAMING_ENABLED, sinon un JSON unique."""
 
     def post(self, request, pk):
