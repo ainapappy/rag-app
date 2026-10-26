@@ -1,206 +1,187 @@
-# rag-app
+<div align="center">
 
-Application **RAG** (Retrieval-Augmented Generation) : déposez des documents,
-posez vos questions en français, obtenez des réponses **uniquement à partir de
-ces documents**, avec leurs sources. Cœur RAG en Python pur (`rag_core/`),
-interface Django (`chatbot/`), LLM local **Ollama** en développement, **LLM
-distant** (API compatible OpenAI) en production.
+# 🤖 rag-app
 
-## Architecture
+### Un chatbot RAG complet, en français, propulsé par Vue 3 & TypeScript
+
+*[Déposez vos documents · Posez vos questions · Obtenez des réponses sourcées, en streaming](#-fonctionnalités)*
+
+![Vue.js](https://img.shields.io/badge/Vue.js-3-4FC08D?logo=vuedotjs&logoColor=white&style=for-the-badge)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white&style=for-the-badge)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white&style=for-the-badge)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss&logoColor=white&style=for-the-badge)
+![Django](https://img.shields.io/badge/Django-5.2_LTS-092E20?logo=django&logoColor=white&style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white&style=for-the-badge)
+![Ollama](https://img.shields.io/badge/LLM-Ollama-111111?style=for-the-badge)
+
+**🌐 Découvrez mes autres projets sur [ainatrix.com](https://ainatrix.com)**
+
+![GitHub](https://img.shields.io/badge/GitHub-ainapappy%2Frag--app-181717?logo=github&logoColor=white&style=for-the-badge)
+[![ainatrix.com](https://img.shields.io/badge/Portfolio-ainatrix.com-8A2BE2?logo=googlechrome&logoColor=white&style=for-the-badge)](https://ainatrix.com)
+
+![Tests](https://img.shields.io/badge/tests-220%2B-brightgreen)
+![Coverage](https://img.shields.io/badge/pytest%20%2B%20vitest-sans%20r%C3%A9seau-blue)
+![License](https://img.shields.io/badge/lint-ruff%20%2B%20eslint-ff69b4)
+
+</div>
+
+---
+
+> **rag-app** est une application **RAG** (Retrieval-Augmented Generation) complète :
+> importez des documents (`.txt`, `.md`, `.pdf`), discutez avec, et recevez des réponses
+> **uniquement fondées sur ces documents** — avec leurs sources, en streaming temps réel.
+>
+> Un cœur métier en **Python pur, testable sans réseau** (`rag_core/`), une couche API
+> **Django** volontairement mince, et une interface **Vue 3 + TypeScript strict** qui
+> fait toute l'expérience utilisateur.
+
+---
+
+## ✨ Fonctionnalités
+
+| | |
+|---|---|
+| 💬 **Chat en streaming (SSE)** | Réponses token par token via Server-Sent Events, avec un parseur SSE **pur TypeScript et testé** (Vitest) |
+| 📎 **Sources dépliables** | Chaque réponse cite ses extraits de documents — pas d'hallucination sans traçabilité |
+| 🧠 **Questions de suivi** | Les relances sont **reformulées** automatiquement avec l'historique de la conversation |
+| 🔄 **Conversations persistantes** | Historique complet côté serveur, liste de conversations réactive côté client |
+| 📄 **Indexation multi-formats** | Upload `.txt` / `.md` / `.pdf` depuis l'admin, indexation automatique idempotente |
+| 🔍 **Retrieval vectoriel ou hybride** | Similarité cosinus (NumPy + SQLite) **ou** BM25 + fusion RRF — au choix via config |
+| 🔑 **API JSON sécurisée** | django-ninja + OpenAPI auto-documentée, clés hachées (sha256), rate limiting |
+| 🧪 **Qualité outillée** | 220+ tests pytest sans réseau, vue-tsc, ESLint flat config, Prettier, Ruff |
+
+## 🎨 L'interface : Vue 3 + TypeScript strict
+
+Le front vit dans [`frontend/`](frontend/) — c'est une **vraie application Vue**,
+pas une surcouche décorative :
+
+```
+frontend/src/
+├── components/{chat,conversations,ui,auth}/   # composants SFC organisés par domaine
+├── composables/       # état réactif : useChat, useConversations, useAuth
+├── api/               # couche fetch typée (CSRF, auth, conversations) — sans état
+├── lib/sse.ts         # parseur SSE pur, testé avec Vitest
+└── types/             # types partagés front/back
+```
+
+- **Vue 3.5 `<script setup>`** + Composition API, état mutualisé dans des **composables réutilisables**
+- **TypeScript `strict`**, vérifié en CI avec `vue-tsc --noEmit` — le PHPStan du front
+- **Reka UI** : composants headless accessibles (focus trap, ARIA, clavier)
+- **Tailwind CSS v4** via plugin Vite, build de production optimisé
+- **Vitest** sur la logique critique (protocole SSE), ESLint 9 + Prettier
+- Intégration Django propre : Vue monte sur `#chat-app`, les assets construits sont
+  résolus via le **manifest Vite** — jamais de nom de fichier en dur
+- **Zéro `v-html`, zéro logique métier côté client** : la sécurité et le RAG restent serveur
+
+```powershell
+cd frontend
+npm run dev          # hot reload (proxy Vite → Django :8000)
+npm run typecheck    # vue-tsc --noEmit
+npm run test         # vitest
+npm run build        # bundle production → static/chatbot/app/
+```
+
+## 🏗 Architecture
+
+Deux mondes strictement séparés, liés par **injection de dépendances** et des
+**interfaces ABC** (≈ contrats d'interface PHP) :
 
 ```
 ┌──────────────────────────  Django (couche fine)  ─────────────────────────┐
 │  chatbot/  admin (documents)  chat web (SSE)  API JSON (django-ninja)     │
-│  models: Document, Conversation, Message, ApiKey                          │
-│  services: DocumentIndexingService, ChatService, ApiChatService           │
 └───────────────────────────────────┬───────────────────────────────────────┘
-                                    │ (interfaces ABC, injection par le Container)
+                                    │  interfaces ABC + Container (DI)
 ┌──────────────────────────  rag_core (Python pur, zéro Django) ────────────┐
-│ loaders (txt/md/pdf) → chunking (fixed/paragraph) → embeddings (OpenAI/Ollama)
-│ → vectorstore (simple: NumPy+SQLite | chroma) → retrieval (vector | hybrid BM25+RRF)
-│ → prompting (prompt strict, query rewriter) → pipeline (ingestion, RAG)
-│ evaluation (Hit@k, MRR, refus, juge LLM) · settings (pydantic-settings)
+│ loaders → chunking → embeddings → vectorstore → retrieval → prompting     │
+│ → pipeline · evaluation (Hit@k, MRR, refus, juge LLM)                     │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-L'index par défaut (`simple`) ne dépend que de NumPy et SQLite ; Ollama n'est
-requis qu'en local — en production, tout passe par une API distante.
+Chaque brique (`llm/`, `embeddings/`, `vectorstore/`, `retrieval/`…) suit le même
+motif : `base.py` (ABC), implémentations concrètes, `factory.py`. Résultat :
+**Ollama en local, API compatible OpenAI en production — un simple changement de `.env`.**
 
-## Prérequis
+L'index par défaut ne dépend que de **NumPy + SQLite** : aucun service externe requis.
 
-- Python **3.11+**, Git, [uv](https://docs.astral.sh/uv/) (optionnel mais rapide).
-- Local : [Ollama](https://ollama.com) avec `llama3.2:3b` et `nomic-embed-text`
-  (`ollama pull …`). Production : une API compatible OpenAI.
-- Pour développer ou construire le front : **Node.js 20+** et npm (inutiles à
-  l'exécution une fois les assets construits).
+## 🚀 Démarrage rapide
 
-## Installation locale
+```bash
+git clone https://github.com/ainapappy/rag-app.git rag-app && cd rag-app
 
-```powershell
-# 1. Cloner et entrer dans le projet
-git clone <depot> rag-app ; cd rag-app
+# Backend
+python -m venv .venv && .venv\Scripts\Activate.ps1   # source .venv/bin/activate sur Linux/macOS
+pip install -r requirements-dev.txt
+cp .env.example .env                                  # Copy-Item sous Windows
 
-# 2. Créer le venv (≈ vendor/ isolé par projet)
-uv venv .venv          # ou : python -m venv .venv
-
-# 3. L'activer — PowerShell (.venv\Scripts\Activate.ps1 ; si bloqué :
-#    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned) — bash : source .venv/bin/activate
-
-# 4. Installer (requirements.txt est déjà épinglé)
-pip install -r requirements-dev.txt      # prod seule : requirements.txt
-
-# 5. Configurer
-Copy-Item .env.example .env              # macOS/Linux : cp .env.example .env
-
-# 6. Base, super-utilisateur, documents d'exemple
 python manage.py migrate
 python manage.py createsuperuser
-python manage.py ingest docs/
+python manage.py ingest docs/                         # indexe les documents d'exemple
 
-# 7. Construire le front (Vue 3 + Tailwind ; requis une fois)
-cd frontend ; npm ci ; npm run build ; cd ..
+# Front (une seule fois)
+cd frontend && npm ci && npm run build && cd ..
 
-# 8. Démarrer
-python manage.py runserver               # http://127.0.0.1:8000
+# Lancer 🎉
+python manage.py runserver                            # http://127.0.0.1:8000
 ```
 
-## Développement front
+Prérequis : Python 3.11+, Node 20+ (build du front), et
+[Ollama](https://ollama.com) avec `llama3.2:3b` + `nomic-embed-text` en local.
+👉 Procédure détaillée et configuration complète : [`docs/README.md`](docs/README.md).
 
-L'interface du chat vit dans [frontend/](frontend/) : **Vue 3 + TypeScript
-strict**, **Reka UI** (composants headless accessibles) et **Tailwind CSS v4**,
-empilés par Vite. Django rend la coquille HTML ; Vue monte sur `#chat-app`
-(`chatbot/templates/chatbot/chat.html`). Les assets construits sortent dans
-`static/chatbot/app/` (non commités) et sont résolus via le manifest Vite
-(`chatbot/templatetags/vite.py`) — jamais de nom de fichier en dur.
+## 🖥 Utilisation
 
-```powershell
+| URL | Quoi |
+|---|---|
+| `/chat/` | Le chat Vue 3 : conversations, streaming, sources dépliables |
+| `/admin/` | Upload et gestion des documents (indexation automatique) |
+| `/api/docs` | Documentation OpenAPI interactive de l'API JSON |
+| `/health/` | Health-check public |
+
+```bash
+# CLI incluse
+python manage.py ask "…question…" --stream   # poser une question depuis le terminal
+python manage.py eval_rag                    # qualité : Hit@k, MRR, taux de bons refus
+```
+
+## 🧪 Tests & qualité
+
+```bash
+pytest                        # 220+ tests, sans réseau ni Ollama (fakes injectés)
+pytest -m integration         # tests réels contre Ollama
+ruff check .                  # lint Python
 cd frontend
-npm ci                      # ≈ composer install (versions du package-lock.json)
-npm run dev                 # hot reload sur http://localhost:5173
-npm run build               # production (puis manage.py collectstatic)
-npm run typecheck           # vue-tsc (≈ PHPStan du front)
-npm run lint                # eslint + prettier
-npm run test                # vitest (parseur SSE)
+npm run typecheck && npm run lint && npm run test
 ```
 
-En mode `npm run dev`, mettre aussi dans `.env` (le proxy Vite transmet
-`/chat`, `/accounts`, `/admin` vers Django sur `:8000`) :
+Le cœur `rag_core/` est **entièrement testable hors ligne** grâce à l'injection
+de `FakeLLM` / `FakeEmbeddingProvider` — l'IA n'est jamais nécessaire pour tester.
 
-```env
-FRONTEND_DEV_URL=http://localhost:5173
-DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:5173
-```
+## 🔐 Sécurité
 
-Structure : `src/api/` (fetch/CSRF, sans état) · `src/composables/` (état
-réactif : `useChat`, `useConversations`) · `src/lib/sse.ts` (parseur SSE pur,
-testé) · `src/types/` · `src/components/{chat,conversations,ui}/`. Les
-endpoints JSON de session sont sous `chat/api/conversations/` ; le protocole
-SSE (`sources` / `token` / `done` / `error`) est inchangé.
+- Clés d'API **hachées** (sha256, comparaison à temps constant), affichées une seule fois
+- Rate limiting (API, chat, login) et validation d'uploads (extension, taille, octets magiques PDF)
+- Secrets jamais dans Git ni les logs (filtre de masquage) ; HSTS + cookies sécurisés en production
 
-## Configuration (`.env`)
+## 🗺 Pistes d'évolution
 
-| Variable | Défaut | Rôle |
-|---|---|---|
-| `DJANGO_SECRET_KEY` | — | Clé secrète Django (générée localement) |
-| `DJANGO_DEBUG` | `True` | `False` en production |
-| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Hôtes autorisés |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | (vide) | Origines `https://…` de confiance |
-| `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | Ollama / `ollama` / `llama3.2:3b` | Chat |
-| `LLM_TEMPERATURE` | `0.2` | Température |
-| `EMBED_BASE_URL` / `EMBED_API_KEY` / `EMBED_MODEL` | Ollama / `ollama` / `nomic-embed-text` | Embeddings |
-| `EMBED_BATCH_SIZE` | `32` | Textes par appel d'embeddings |
-| `VECTOR_STORE` / `VECTOR_STORE_PATH` | `simple` / `data/index` | Magasin vectoriel |
-| `CHUNKER_STRATEGY` / `CHUNK_SIZE` / `CHUNK_OVERLAP` | `fixed` / 700 / 100 | Découpage |
-| `TOP_K` / `MIN_SCORE` | 4 / 0.65¹ | Recherche |
-| `HISTORY_WINDOW` / `STREAMING_ENABLED` | 6 / `True` | Chat |
-| `RETRIEVER` | `vector` | `vector` ou `hybrid` (BM25 + RRF) |
-| `INDEX_ON_UPLOAD` / `MAX_UPLOAD_MB` | `True` / 10 | Admin/uploads |
-| `RATE_LIMIT_PER_MINUTE` | 30 | API, chat, login |
-| `DJANGO_LOG_LEVEL` | `INFO` | Journaux |
+- [ ] Indexation en tâche de fond (django-q2)
+- [ ] PostgreSQL + pgvector en remplacement de l'index `simple`
+- [ ] Re-ranking des résultats & OCR pour les PDF scannés
 
-¹ Ajusté localement pour nomic-embed-text après mesure (voir
-[docs/EVALUATION.md](docs/EVALUATION.md)).
+## 📚 Documentation
 
-## Utilisation
+| Document | Contenu |
+|---|---|
+| [`docs/README.md`](docs/README.md) | Guide technique complet : installation, configuration `.env`, API, déploiement |
+| [`docs/EVALUATION.md`](docs/EVALUATION.md) | Méthodologie et résultats d'évaluation du retrieval (Hit@k, MRR) |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Checklist production, gunicorn + nginx, dépannage |
 
-- **Admin documents** : `/admin/` — upload `.txt`/`.md`/`.pdf` (indexation
-  automatique), statut, actions Indexer / Réindexer / Retirer de l'index.
-- **Chat web** : `/chat/` — conversations persistantes, questions de suivi
-  reformulées, réponses en streaming avec sources dépliables.
-- **API JSON** : `/api/` — clé via `python manage.py create_api_key <nom>`
-  (affichée une seule fois) ; docs OpenAPI sur `/api/docs` ; exemples dans la
-  section « Utiliser l'API » plus bas.
+---
 
-```powershell
-# Commandes principales
-python manage.py ingest docs/ --list    # indexation idempotente
-python manage.py ask "…question…" --stream
-python manage.py chunk_preview docs/guide_rag.md
-python manage.py semantic_demo --query "un félin sommeille"
-python manage.py eval_rag               # qualité : Hit@k, MRR, refus
-python manage.py backup_data            # archive data/ + base SQLite
-```
+<div align="center">
 
-## Utiliser l'API
+**Construit par [Aina Papy](https://github.com/ainapappy)**
 
-```powershell
-python manage.py create_api_key integration      # clé affichée UNE FOIS
-curl -H "X-API-Key: <cle>" -H "Content-Type: application/json" `
-     -X POST http://127.0.0.1:8000/api/chat `
-     -d '{"question":"Combien de jours de conges payes par an ?"}'
-curl -H "X-API-Key: <cle>" http://127.0.0.1:8000/api/documents
-```
+🌐 Portfolio : **[ainatrix.com](https://ainatrix.com)** · 💻 Code : [github.com/ainapappy](https://github.com/ainapappy)
 
-Codes : 401 clé invalide · 422 validation · 429 `Retry-After` · 502 erreur
-métier RAG (`{"detail": "…"}`) · `GET /health/` public · `?deep=1` staff.
-
-## Tests et qualité
-
-```powershell
-pytest                          # 220+ tests, sans réseau ni Ollama
-pytest -m integration           # tests réels (Ollama requis)
-ruff check .                    # lint (max 100 colonnes)
-python manage.py check --deploy # audit production (avec DJANGO_DEBUG=False)
-python manage.py makemigrations --check
-# Front (depuis frontend/) : npm run typecheck, lint, test
-```
-
-## Évaluation
-
-`python manage.py eval_rag [--retriever hybrid] [--sweep] [--with-llm --judge]`
-mesure Hit@k, MRR, taux de bons refus et compare les réglages. Bilan :
-[docs/EVALUATION.md](docs/EVALUATION.md).
-
-## Déploiement
-
-Procédure complète, checklist, plan B VPS (gunicorn + nginx) et dépannage :
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Point d'entrée WSGI :
-`passenger_wsgi.py`. Santé : `/health/`.
-
-## Sécurité
-
-- Clés d'API stockées **hachées** (sha256, comparaison temps constant) ;
-  clé en clair affichée une seule fois.
-- Secrets jamais dans Git ni les logs (filtre de masquage sur `X-API-Key`,
-  `Authorization`, …).
-- Rate limiting (API, chat, login), validation d'uploads (extension, taille,
-  octets magiques PDF, nom nettoyé), en-têtes de sécurité ; HSTS/cookies
-  sécurisés actifs quand `DEBUG=False`.
-- Les 3 avertissements restants de `check --deploy` (SSL redirect, HSTS
-  subdomains/preload) sont volontairement différés : ils supposent un HTTPS
-  validé sur le domaine final.
-
-## Limites connues
-
-- Indexation dans la requête admin (pas de tâche d'arrière-plan) : un gros
-  PDF peut être lent.
-- Rate limit par processus avec le cache local : prévoir un cache partagé en
-  multi-processus (`chatbot/ratelimit.py`).
-- OCR non supporté (PDF scannés refusés) ; extraction PDF imparfaite possible.
-- Échantillon d'évaluation réduit (15 questions) : chiffres indicatifs.
-
-## Pistes d'évolution
-
-- Tâches d'arrière-plan (`django-q2`) pour l'indexation.
-- PostgreSQL + pgvector à la place de l'index `simple`.
-- Re-ranking des résultats, OCR pour les PDF scannés, cache sémantique.
+</div>
