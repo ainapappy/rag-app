@@ -74,6 +74,15 @@
 .venv\Scripts\python.exe manage.py migrate
 ```
 
+## Données et documents
+
+- Un chunk garde toujours `source`, `page` et `index` (traçabilité vers le
+  document d'origine ; `page` vaut None pour les fichiers sans pagination).
+- Les paramètres invalides de constructeur lèvent `ValueError` ; `ConfigError`
+  est réservé à la couche Settings / factories.
+- `docs/` contient les documents d'exemple ; les PDF locaux ne sont pas
+  versionnés (`.gitignore`).
+
 ## Données
 
 - `data/media/` : documents uploadés.

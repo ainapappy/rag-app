@@ -1,0 +1,55 @@
+POLITIQUE DE CONGÉS — SOCIÉTÉ FICTIVE « TEKAVO SARL »
+(ce document est un exemple fictif rédigé pour tester le moteur RAG)
+
+1. Congés annuels payés
+
+Chaque salarié dispose de 25 jours ouvrés de congés annuels payés, crédités
+au 1er janvier de chaque année. Les jours sont acquis au taux de 2,08 jours
+par mois travaillé pour les entrées en cours d'année. Le solde minimum
+obligatoire de 12 jours doit être posé entre le 1er mai et le 31 octobre
+(période d'été) ; le reliquat peut être posé librement sur le reste de l'année.
+
+2. Préavis
+
+Le préavis dépend de la durée du congé demandé :
+- congé de 1 à 5 jours ouvrés : préavis de 7 jours calendaires ;
+- congé de 6 à 15 jours ouvrés : préavis de 15 jours calendaires ;
+- congé de plus de 15 jours ouvrés : préavis de 30 jours calendaires.
+
+Une demande déposée moins de 48 heures avant la date souhaitée est
+automatiquement refusée par l'outil RH, sauf circonstance familiale urgente
+validée par la direction.
+
+3. Report des congés
+
+Un maximum de 8 jours ouvrés non posés peut être reporté sur l'année
+suivante, à condition d'être consommé avant le 31 mars. Au-delà de cette
+date, les jours reportés non consommés sont définitivement perdus, sans
+indemnité de remplacement.
+
+4. Congé maladie
+
+Le congé maladie est décompté séparément des congés annuels. Il nécessite un
+certificat médical transmis dans les 48 heures suivant le premier jour
+d'arrêt. Les 5 premiers jours d'arrêt sont couverts à 70 % du salaire brut,
+puis à 50 % du 6e au 30e jour. Au-delà de 30 jours consécutifs, le dossier
+passe en invalidité temporaire et relève de la couverture complémentaire.
+Aucun jour de congé maladie n'est décompté du solde des 25 jours annuels.
+
+5. Congés spéciaux
+
+- Mariage du salarié : 4 jours ouvrés payés.
+- Naissance ou adoption : 5 jours ouvrés payés.
+- Décès d'un proche au premier degré : 5 jours ouvrés payés.
+- Déménagement : 1 jour ouvré payé, une fois par an.
+
+Ces jours spéciaux ne réduisent pas le solde annuel mais doivent être posés
+dans les 30 jours suivant l'événement.
+
+6. Validation et litiges
+
+Toutes les demandes passent par l'outil RH « Kalendria ». Le manager a 5
+jours ouvrés pour répondre ; au-delà, la demande est validée par défaut.
+En cas de litige, la commission congés (2 représentants RH et 2 représentants
+du personnel) se réunit le premier mardi de chaque mois et rend un avis
+consultatif sous 10 jours ouvrés.

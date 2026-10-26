@@ -10,6 +10,9 @@ staticfiles/
 data/
 media/
 
+# Documents d'exemple locaux (PDF potentiellement confidentiels)
+docs/*.pdf
+
 # Environnement
 .env
 .env.local
@@ -25,3 +28,4 @@ htmlcov/
 .vscode/
 .DS_Store
 Thumbs.db
+CLAUDE.md

@@ -30,6 +30,20 @@ class ChatMessage:
 
 
 @dataclass(frozen=True)
+class Document:
+    """Un document chargé en mémoire (une entrée par page pour les PDF).
+
+    `source` est le nom du fichier (ex. « guide.pdf ») ; `page` commence
+    à 1 pour les PDF et vaut None pour les fichiers sans pagination.
+    """
+
+    source: str
+    content: str
+    page: int | None = None
+    metadata: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class Chunk:
     """Un fragment de document indexé, avec sa source et sa position.
 
