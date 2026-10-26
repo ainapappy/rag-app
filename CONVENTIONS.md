@@ -35,8 +35,19 @@
 
 - **Aucun test unitaire ne touche le réseau ni Ollama** : faux LLM
   (`FakeLLM`) et faux embeddings (`FakeEmbeddingProvider`).
-- Les tests réels (Ollama, API distante) sont marqués `@pytest.mark.integration`.
+- Pour les clients externes (SDK `openai`...), injecter un double par le
+  paramètre `client=` du constructeur — c'est le point d'injection prévu ;
+  ne jamais laisser un test ouvrir une vraie connexion.
+- Les tests réels (Ollama, API distante) sont marqués `@pytest.mark.integration`
+  et **exclus par défaut** (`addopts` dans `pyproject.toml`) ; les lancer
+  explicitement avec `pytest -m integration`.
 - Un fichier de test par module, dans `tests/`, nommé `test_<module>.py`.
+
+## Journalisation et affichage
+
+- Pas de `print` dans `rag_core/` : utiliser le module `logging`.
+- `print` / `self.stdout.write` autorisés uniquement dans les commandes Django.
+- Ne jamais journaliser une clé API.
 
 ## Git
 

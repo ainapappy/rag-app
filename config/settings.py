@@ -134,6 +134,12 @@ LOGGING = {
     "handlers": {
         "console": {"class": "logging.StreamHandler"},
     },
+    # Les SDK httpx/openai sont très bavards en INFO : on les calme.
+    "loggers": {
+        "httpx": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "httpx2": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "openai": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
     "root": {
         "handlers": ["console"],
         "level": LOG_LEVEL,

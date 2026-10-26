@@ -26,6 +26,9 @@ select = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 testpaths = ["tests"]
+# Les tests d'intégration (Ollama réel) sont exclus par défaut :
+# les lancer explicitement avec `pytest -m integration`.
+addopts = "-m 'not integration'"
 markers = [
-    "integration: tests qui nécessitent un service réel (Ollama, réseau) — exclus par défaut en CI",
+    "integration: tests qui nécessitent un service réel (Ollama, réseau) — exclus par défaut",
 ]
