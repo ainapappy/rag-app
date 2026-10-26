@@ -1,0 +1,49 @@
+{% extends "chatbot/base.html" %}
+{% block content %}
+<aside class="sidebar">
+    <a class="btn" href="{% url 'chat' %}">Conversations</a>
+    <form method="post" action="{% url 'chat_new' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn primary">+ Nouvelle conversation</button>
+    </form>
+    <nav class="conversation-list">
+        {% for conversation in conversations %}
+            <div class="conversation {% if conversation == current %}active{% endif %}">
+                <a href="{% url 'chat_detail' conversation.pk %}" class="conversation-link">
+                    {{ conversation.title|default:"Nouvelle conversation" }}
+                </a>
+                <button class="delete-btn"
+                        hx-post="{% url 'chat_delete' conversation.pk %}"
+                        hx-confirm="Supprimer cette conversation ?">✕</button>
+            </div>
+        {% empty %}
+            <p class="muted">Aucune conversation.</p>
+        {% endfor %}
+    </nav>
+</aside>
+
+<section class="chat" id="chat"
+         data-send-url="{% if current %}{% url 'chat_send' current.pk %}{% endif %}"
+         data-streaming="{{ streaming_enabled|yesno:'1,0' }}"
+         data-csrf="{{ csrf_token }}">
+    <div class="messages" id="messages">
+        {% for message in messages %}
+            {% include "chatbot/partials/_message.html" %}
+        {% empty %}
+            <p class="muted" id="empty-state">
+                Posez une question sur les documents indexés.
+            </p>
+        {% endfor %}
+    </div>
+    {% if current %}
+    <form class="composer" id="composer">
+        {% csrf_token %}
+        <input type="text" name="question" id="question-input"
+               placeholder="Votre question…" autocomplete="off" required>
+        <button type="submit" class="btn primary" id="send-btn">Envoyer</button>
+    </form>
+    {% else %}
+    <p class="muted composer-hint">Créez une conversation pour commencer.</p>
+    {% endif %}
+</section>
+{% endblock %}

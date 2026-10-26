@@ -1,0 +1,13 @@
+{% extends "chatbot/base.html" %}
+{% block title %}Connexion — rag-app{% endblock %}
+{% block content %}
+<section class="login-box">
+    <h1>Connexion</h1>
+    <p class="muted">Le chat est réservé aux utilisateurs connectés.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn primary">Se connecter</button>
+    </form>
+</section>
+{% endblock %}

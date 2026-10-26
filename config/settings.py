@@ -59,7 +59,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -115,9 +115,22 @@ STATIC_URL = "static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Fichiers statiques de l'application (CSS/JS du chat, vendor).
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
 MEDIA_ROOT = BASE_DIR / "data" / "media"
 
 MEDIA_URL = "/media/"
+
+# ---------------------------------------------------------------------------
+# Authentification (chat accessible uniquement connecté)
+# ---------------------------------------------------------------------------
+
+LOGIN_URL = "login"
+
+LOGIN_REDIRECT_URL = "chat"
+
+LOGOUT_REDIRECT_URL = "login"
 
 # Type de champ auto par défaut pour les clés primaires.
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

@@ -14,6 +14,7 @@ from rag_core.loaders.factory import LoaderFactory
 from rag_core.pipeline.ingestion import IngestionPipeline
 from rag_core.pipeline.rag import RagPipeline
 from rag_core.prompting.prompt_builder import PromptBuilder
+from rag_core.prompting.query_rewriter import QueryRewriter
 from rag_core.retrieval.retriever import Retriever
 from rag_core.settings import Settings, get_settings
 from rag_core.vectorstore.factory import VectorStoreFactory
@@ -90,9 +91,19 @@ class Container:
         return PromptBuilder()
 
     @cached_property
+    def rewriter(self):
+        """Reformulateur de questions de suivi (lazy)."""
+        return QueryRewriter(self.llm)
+
+    @cached_property
     def rag_pipeline(self):
         """Pipeline RAG complet (retrieve → prompt → LLM), lazy."""
-        return RagPipeline(self.retriever, self.prompt_builder, self.llm)
+        return RagPipeline(self.retriever, self.prompt_builder, self.llm, self.rewriter)
+
+    @property
+    def settings(self) -> Settings:
+        """Settings portés par ce conteneur (ex. HISTORY_WINDOW pour le chat)."""
+        return self._settings
 
 
 # Cache module-level du conteneur (≈ singleton applicatif).

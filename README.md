@@ -80,3 +80,19 @@ Dans **Documents** : « Ajouter » pour téléverser un `.txt`, `.md` ou `.pdf`
 nombre de chunks dans la liste, actions **Indexer / Retirer de l'index /
 Réindexer** sur la sélection. La suppression retire aussi les chunks de
 l'index et le fichier du disque.
+
+## Utiliser le chatbot
+
+1. Lancer `python manage.py runserver` et ouvrir http://127.0.0.1:8000/ .
+2. Se connecter (compte créé via `createsuperuser` ou un `User` de test).
+3. Cliquer « + Nouvelle conversation », poser une question : la réponse
+   s'affiche progressivement (si `STREAMING_ENABLED=True`) avec ses sources
+   dépliables sous le message.
+4. Les questions de suivi sont reformulées automatiquement (ex. « et pour les
+   congés maladie ? » après une question sur les congés) — visible dans les
+   logs Django.
+5. L'historique persiste (SQLite) ; chaque utilisateur ne voit que ses
+   conversations.
+
+Note streaming : en WSGI, un worker reste occupé pendant la génération —
+désactivez `STREAMING_ENABLED` en production si nécessaire.

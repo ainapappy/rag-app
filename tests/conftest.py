@@ -111,3 +111,73 @@ def patched_container(monkeypatch, fake_pipeline) -> FakeContainer:
     fake = FakeContainer(fake_pipeline)
     monkeypatch.setattr(services_module, "get_container", lambda: fake)
     return fake
+
+
+# ---------------------------------------------------------------------------
+# Fixtures chat (pipeline RAG enregistrant ses appels)
+# ---------------------------------------------------------------------------
+
+
+class RecordingRagPipeline:
+    """Remplace `container.rag_pipeline` : réponses fixes, appels enregistrés."""
+
+    def __init__(self, text: str = "Réponse de test.", found: bool = True, error=None) -> None:
+        self.calls: list[tuple[str, tuple]] = []
+        self.text = text
+        self.found = found
+        self.error = error
+        self.sources = ()  # tuple de Source (vide par défaut)
+
+    def ask(self, question: str, history: tuple = ()):
+        self.calls.append((question, history))
+        if self.error is not None:
+            raise self.error
+        from rag_core.models import Answer
+
+        return Answer(text=self.text, sources=self.sources, found=self.found)
+
+    def ask_stream(self, question: str, history: tuple = ()):
+        self.calls.append((question, history))
+        if self.error is not None:
+            raise self.error
+        from rag_core.models import StreamedAnswer
+
+        tokens = iter([self.text]) if self.found else iter([self.text])
+        return StreamedAnswer(sources=self.sources, found=self.found, tokens=tokens)
+
+
+class FakeChatContainer:
+    """Conteneur minimal pour ChatService : settings + rag_pipeline."""
+
+    def __init__(self, pipeline: RecordingRagPipeline, settings=None) -> None:
+        self.rag_pipeline = pipeline
+        self._settings = settings or Settings(_env_file=None)
+
+    @property
+    def settings(self):
+        return self._settings
+
+
+@pytest.fixture
+def rag_pipeline() -> RecordingRagPipeline:
+    return RecordingRagPipeline()
+
+
+@pytest.fixture
+def chat_container(rag_pipeline) -> FakeChatContainer:
+    return FakeChatContainer(rag_pipeline)
+
+
+@pytest.fixture
+def patched_chat_container(monkeypatch, chat_container) -> FakeChatContainer:
+    """Remplace le conteneur utilisé par `ChatService()` dans les vues."""
+    import chatbot.services as services_module
+
+    monkeypatch.setattr(services_module, "get_container", lambda: chat_container)
+    return chat_container
+
+
+@pytest.fixture
+def user(django_user_model):
+    """Utilisateur standard (≈ factory User de Laravel)."""
+    return django_user_model.objects.create_user("alice", password="test1234")

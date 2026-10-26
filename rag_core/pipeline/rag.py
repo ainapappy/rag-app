@@ -14,8 +14,8 @@ _EXCERPT_CHARS = 200
 class RagPipeline:
     """Répond uniquement à partir des documents, en citant ses sources.
 
-    `rewriter` est accepté pour l'injection future (réécriture de requête,
-    phase 07) mais n'est pas encore utilisé.
+    `rewriter` (optionnel) reformule les questions de suivi en questions
+    autonomes pour la recherche ; le prompt final garde la question originale.
     """
 
     def __init__(
@@ -24,13 +24,16 @@ class RagPipeline:
         self._retriever = retriever
         self._prompt_builder = prompt_builder
         self._llm = llm
-        self._rewriter = rewriter  # réservé à la phase 07 (non utilisé ici)
+        self._rewriter = rewriter  # QueryRewriter ou None (phase 07)
 
     def ask(self, question: str, history: tuple[ChatMessage, ...] = ()) -> Answer:
         """Réponse complète ; sans résultat, répond « introuvable » sans appeler le LLM."""
-        results = self._retriever.retrieve(question)
+        search_question = self._rewritten(question, history)
+        results = self._retriever.retrieve(search_question)
         if not results:
             return Answer(text=NO_ANSWER_MESSAGE, sources=(), found=False)
+        # Le prompt final garde la question originale : le LLM en a besoin
+        # pour comprendre le suivi, la reformulation ne sert qu'à chercher.
         messages = self._prompt_builder.build(question, results, history)
         text = self._llm.chat(messages)
         return Answer(text=text, sources=self._build_sources(results), found=True)
@@ -39,7 +42,8 @@ class RagPipeline:
         self, question: str, history: tuple[ChatMessage, ...] = ()
     ) -> StreamedAnswer:
         """Réponse en streaming ; les sources sont disponibles avant les tokens."""
-        results = self._retriever.retrieve(question)
+        search_question = self._rewritten(question, history)
+        results = self._retriever.retrieve(search_question)
         if not results:
             return StreamedAnswer(sources=(), found=False, tokens=iter([NO_ANSWER_MESSAGE]))
         messages = self._prompt_builder.build(question, results, history)
@@ -48,6 +52,12 @@ class RagPipeline:
             found=True,
             tokens=self._llm.stream(messages),
         )
+
+    def _rewritten(self, question: str, history: tuple[ChatMessage, ...]) -> str:
+        """Question à utiliser pour la recherche : reformulée si un rewriter existe."""
+        if self._rewriter is None:
+            return question
+        return self._rewriter.rewrite(question, history)
 
     @staticmethod
     def _build_sources(results: list[SearchResult]) -> tuple[Source, ...]:
