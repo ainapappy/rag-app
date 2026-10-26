@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Document(models.Model):
@@ -90,3 +91,55 @@ class Message(models.Model):
 
     def __str__(self) -> str:
         return f"{self.role}: {self.content[:50]}"
+
+
+class ApiKey(models.Model):
+    """Clé d'API pour l'API JSON : seul le hash est stocké, jamais la clé.
+
+    `generate()` renvoie la clé en clair UNE SEULE FOIS (comme un mot de
+    passe initial) ; `authenticate()` compare en temps constant.
+    """
+
+    name = models.CharField("nom", max_length=100)
+    prefix = models.CharField(
+        "préfixe", max_length=8, db_index=True, help_text="8 premiers caractères."
+    )
+    key_hash = models.CharField("hash de la clé", max_length=64, unique=True)
+    is_active = models.BooleanField("active", default=True)
+    created_at = models.DateTimeField("créée le", auto_now_add=True)
+    last_used_at = models.DateTimeField("dernière utilisation", null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "clé d'API"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.prefix}…)"
+
+    @classmethod
+    def generate(cls, name: str) -> tuple["ApiKey", str]:
+        """Crée une clé ; renvoie (ApiKey, clé en clair) — à afficher une fois."""
+        import hashlib
+        import secrets
+
+        raw_key = secrets.token_urlsafe(32)
+        api_key = cls.objects.create(
+            name=name,
+            prefix=raw_key[:8],
+            key_hash=hashlib.sha256(raw_key.encode("utf-8")).hexdigest(),
+        )
+        return api_key, raw_key
+
+    @classmethod
+    def authenticate(cls, raw_key: str) -> "ApiKey | None":
+        """Valide une clé : hash sha256 comparé en temps constant."""
+        import hashlib
+        import hmac
+
+        digest = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+        candidate = cls.objects.filter(is_active=True, prefix=raw_key[:8]).first()
+        if candidate is not None and hmac.compare_digest(candidate.key_hash, digest):
+            candidate.last_used_at = timezone.now()
+            candidate.save(update_fields=["last_used_at"])
+            return candidate
+        return None

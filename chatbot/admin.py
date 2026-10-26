@@ -140,8 +140,7 @@ class DocumentAdmin(admin.ModelAdmin):
 
     def delete_model(self, request, obj: Document) -> None:
         """Suppression unitaire : retire l'index et le fichier physique."""
-        DocumentIndexingService().remove_from_index(obj)
-        obj.file.delete(save=False)  # supprime le fichier sur le disque
+        DocumentIndexingService().purge(obj)
         super().delete_model(request, obj)
 
     def delete_queryset(self, request, queryset) -> None:

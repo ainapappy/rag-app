@@ -65,6 +65,25 @@ class DocumentIndexingService:
         document.indexed_at = None
         document.save(update_fields=["status", "chunks_count", "indexed_at"])
 
+    def purge(self, document: Document) -> None:
+        """Retire les chunks de l'index et le fichier du disque (sans supprimer la ligne).
+
+        Utilisé par l'admin ET l'API avant la suppression du modèle.
+        """
+        self.remove_from_index(document)
+        document.file.delete(save=False)
+
+
+class ApiChatService:
+    """Chat sans conversation persistée, pour l'API JSON (≈ ChatService minimal)."""
+
+    def __init__(self, container: Container | None = None) -> None:
+        self._container = container if container is not None else get_container()
+
+    def ask(self, question: str, history: tuple[ChatMessage, ...] = ()):
+        """Délègue au pipeline RAG et renvoie l'`Answer` (sans persistance)."""
+        return self._container.rag_pipeline.ask(question, history=history)
+
 
 class ChatService:
     """Conversations persistantes : historique fenêtré, réponses, streaming SSE.

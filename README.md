@@ -96,3 +96,43 @@ l'index et le fichier du disque.
 
 Note streaming : en WSGI, un worker reste occupé pendant la génération —
 désactivez `STREAMING_ENABLED` en production si nécessaire.
+
+## Utiliser l'API
+
+```powershell
+# 1. Créer une clé d'API (affichée UNE SEULE FOIS)
+python manage.py create_api_key integration
+# → conservez la valeur affichée dans $env:API_KEY
+
+# 2. Poser une question
+curl -H "X-API-Key: %API_KEY%" -H "Content-Type: application/json" `
+     -X POST http://127.0.0.1:8000/api/chat `
+     -d '{"question":"Combien de jours de congés par an ?"}'
+
+# 3. Lister / téléverser / supprimer des documents
+curl -H "X-API-Key: %API_KEY%" http://127.0.0.1:8000/api/documents
+curl -X POST -H "X-API-Key: %API_KEY%" -F "title=Guide" -F "file=@docs/guide_rag.md" `
+     http://127.0.0.1:8000/api/documents
+
+# 4. Documentation OpenAPI interactive (sans authentification)
+start http://127.0.0.1:8000/api/docs
+```
+
+Codes : 401 (clé absente/invalide), 422 (validation), 429 (`Retry-After`,
+limite `RATE_LIMIT_PER_MINUTE`), 502 (erreur métier RAG, message stable
+`{"detail": "..."}`). `GET /api/health` est public.
+
+Limites connues : avec le cache local (`LocMemCache`), les compteurs de
+rate-limit sont par processus — en production, configurer un cache partagé
+(voir `chatbot/ratelimit.py`). Les en-têtes HSTS/cookies sécurisés ne sont
+actifs qu'avec `DEBUG=False` ; la redirection HTTPS (`SECURE_SSL_REDIRECT`)
+et `SECURE_PROXY_SSL_HEADER` sont à valider avec PlanetHoster avant
+activation (voir `config/settings.py`). Les 3 avertissements restants de
+`check --deploy` (SECURE_SSL_REDIRECT, HSTS subdomains/preload) sont
+volontairement différés : ils supposent un HTTPS opérationnel et vérifié
+sur le domaine final, sous-domaines compris.
+
+## Journaux
+
+`data/logs/app.log` (rotation 5 Mo × 3) en plus de la console ; un filtre
+masque les clés d'API / tokens (`X-API-Key:`, `Authorization:`, …).

@@ -6,6 +6,8 @@ Toutes les valeurs configurables proviennent du `.env` via django-environ
 le cœur RAG vit dans `rag_core/` et n'importe jamais ce module.
 """
 
+import logging
+import re
 from pathlib import Path
 
 import environ
@@ -16,6 +18,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Initialise django-environ et charge le fichier .env s'il existe.
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
+
+
+class SecretMaskingFilter(logging.Filter):
+    """Masque les clés d'API / tokens dans les messages journalisés.
+
+    Exemple : « X-API-Key: abc123 » devient « X-API-Key: *** ». Pour
+    Authorization/Bearer, toute la fin de ligne est masquée (jetons à points).
+    """
+
+    _SIMPLE = re.compile(
+        r"(?i)\b(x-api-key|api[_-]?key|token)(\s*[:=]\s*|\s+)(\S+)"
+    )
+    _HEADER_LINE = re.compile(
+        r"(?im)\b(authorization|bearer)(\s*[:=]\s*|\s+).*$"
+    )
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        masked = self._SIMPLE.sub(lambda m: f"{m.group(1)}{m.group(2)}***", message)
+        masked = self._HEADER_LINE.sub(lambda m: f"{m.group(1)}{m.group(2)}***", masked)
+        if masked != message:
+            record.msg = masked
+            record.args = None
+        return True
 
 # ---------------------------------------------------------------------------
 # Sécurité / Django de base
@@ -145,26 +171,70 @@ MAX_UPLOAD_MB = env.int("MAX_UPLOAD_MB", default=10)
 # Indexer automatiquement un document juste après l'upload dans l'admin.
 INDEX_ON_UPLOAD = env.bool("INDEX_ON_UPLOAD", default=True)
 
+# Limite de requêtes par fenêtre de 60 s (API par clé, chat par utilisateur,
+# login par IP). Voir chatbot/ratelimit.py pour la limite multi-processus.
+RATE_LIMIT_PER_MINUTE = env.int("RATE_LIMIT_PER_MINUTE", default=30)
+
 # ---------------------------------------------------------------------------
-# Journalisation
+# En-têtes de sécurité
+# ---------------------------------------------------------------------------
+
+# Toujours actives (sans risque même en local).
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+SESSION_COOKIE_HTTPONLY = True
+
+# Uniquement en production (DEBUG=False) : HTTPS supposé en face.
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 3600  # modéré au départ ; monter ensuite à 31536000
+    SECURE_REFERRER_POLICY = "same-origin"
+    # ⚠️ SECURE_SSL_REDIRECT volontairement NON activé : dépend de la façon
+    # dont PlanetHoster transmet HTTPS (proxy ?). Vérifier/poser
+    # SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https") avec
+    # l'hébergeur avant d'activer la redirection.
+
+# ---------------------------------------------------------------------------
+# Journalisation (console + fichier tournant, secrets masqués)
 # ---------------------------------------------------------------------------
 
 LOG_LEVEL = env("DJANGO_LOG_LEVEL", default="INFO")
 
+LOG_DIR = BASE_DIR / "data" / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Filtre : masque les clés d'API / tokens dans les messages journalisés.
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "mask_secrets": {
+            "()": "config.settings.SecretMaskingFilter",
+        }
+    },
     "handlers": {
-        "console": {"class": "logging.StreamHandler"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "filters": ["mask_secrets"],
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "app.log"),
+            "maxBytes": 5 * 1024 * 1024,  # 5 Mo par fichier
+            "backupCount": 3,
+            "encoding": "utf-8",
+            "filters": ["mask_secrets"],
+        },
     },
     # Les SDK httpx/openai sont très bavards en INFO : on les calme.
     "loggers": {
-        "httpx": {"handlers": ["console"], "level": "WARNING", "propagate": False},
-        "httpx2": {"handlers": ["console"], "level": "WARNING", "propagate": False},
-        "openai": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "httpx": {"handlers": ["console", "file"], "level": "WARNING", "propagate": False},
+        "httpx2": {"handlers": ["console", "file"], "level": "WARNING", "propagate": False},
+        "openai": {"handlers": ["console", "file"], "level": "WARNING", "propagate": False},
     },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["console", "file"],
         "level": LOG_LEVEL,
     },
 }

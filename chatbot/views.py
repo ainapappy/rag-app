@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.views import View
 
 from chatbot.models import Conversation
+from chatbot.ratelimit import default_limiter
 from chatbot.services import ChatService
 from rag_core.settings import get_settings
 
@@ -78,6 +79,15 @@ class SendView(LoginRequiredMixin, View):
         question = (request.POST.get("question") or "").strip()
         if not question:
             return HttpResponseBadRequest("Question vide.")
+        # Frein anti-abus, par utilisateur (voir chatbot/ratelimit.py pour
+        # la limite multi-processus du cache local).
+        result = default_limiter().hit(f"chat-send:{request.user.pk}")
+        if not result.allowed:
+            return HttpResponse(
+                "Trop de requêtes, réessayez dans quelques instants.",
+                status=429,
+                headers={"Retry-After": str(result.retry_after)},
+            )
         service = ChatService()
         if get_settings().streaming_enabled:
             response = StreamingHttpResponse(
@@ -90,5 +100,20 @@ class SendView(LoginRequiredMixin, View):
         return render(request, "chatbot/partials/_message.html", {"message": message})
 
 
-login_view = auth_views.LoginView.as_view(template_name="registration/login.html")
+class RateLimitedLoginView(auth_views.LoginView):
+    """Login freiné par IP contre la force brute (429 + Retry-After)."""
+
+    def post(self, request, *args, **kwargs):
+        ip = request.META.get("REMOTE_ADDR", "unknown")
+        result = default_limiter().hit(f"login:{ip}")
+        if not result.allowed:
+            return HttpResponse(
+                "Trop de tentatives de connexion. Réessayez plus tard.",
+                status=429,
+                headers={"Retry-After": str(result.retry_after)},
+            )
+        return super().post(request, *args, **kwargs)
+
+
+login_view = RateLimitedLoginView.as_view(template_name="registration/login.html")
 logout_view = auth_views.LogoutView.as_view()
