@@ -9,7 +9,7 @@ Application RAG (documents + mini chatbot) : **Django** comme couche mince, cœu
 ## Contrat d'architecture (source de vérité)
 
 - `.docs/prompts/README.md` : contrat complet — noms de classes, interfaces (`LLMClient`, `EmbeddingProvider`, `VectorStore`), signatures exactes, variables d'environnement. **À lire avant toute phase et respecter les noms à l'identique.**
-- `.docs/prompts/phase00.md` à `phase10.md` : phases à exécuter **dans l'ordre, une par une**. Ne jamais sauter une phase ; vérifier ses critères d'acceptation avant de passer à la suivante.
+- `.docs/prompts/phase00.md` à `phase11.md` : phases à exécuter **dans l'ordre, une par une**. Ne jamais sauter une phase ; vérifier ses critères d'acceptation avant de passer à la suivante. (`phase11.md` = évolution « 10+ », exécutable après phase10 uniquement.)
 - `CONVENTIONS.md` : règles de style, POO, tests, Git.
 
 ## Commandes
@@ -33,6 +33,7 @@ Deux mondes strictement séparés :
 
 - **`rag_core/`** — cœur RAG en Python pur. **Interdiction d'y importer Django.** Structure imposée par le contrat : `settings.py` (pydantic-settings, `get_settings()`), `exceptions.py` (hiérarchie sous `RagError`), `models.py` (dataclasses `frozen=True`), `container.py` (DI), et packages `llm/`, `embeddings/`, `vectorstore/`, `loaders/`, `chunking/`, `retrieval/`, `evaluation/`, `prompting/`, `pipeline/`. Chaque package suit le motif : `base.py` (ABC ≈ interface PHP), implémentations concrètes, `factory.py` (création depuis `Settings`).
 - **`chatbot/`** — app Django, couche fine : modèles ORM, vues sans logique métier, services (`DocumentIndexingService`, `ChatService`) qui délèguent au `Container` de `rag_core`.
+- **`frontend/`** — front Vue 3 + TypeScript strict + Reka UI + Tailwind v4 (phase 11), build Vite vers `static/chatbot/app/` (non commité). Django rend la coquille HTML ; Vue monte sur `#chat-app` ; pas de logique métier côté client, pas de `v-html`.
 
 Configuration : `.env` lu par django-environ dans `config/settings.py` (côté Django) et par pydantic-settings dans `rag_core/settings.py` (côté métier). Aucune valeur en dur dans le code. Toutes les variables du contrat sont dans `.env.example`.
 

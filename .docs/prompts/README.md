@@ -1,6 +1,6 @@
 # Prompts du projet `rag-app` (Django + Ollama + RAG)
 
-Ce dossier contient **11 prompts** (`phase00.md` à `phase10.md`). Exécutés **dans l'ordre**, un par un, par un agent de code (Claude Code, Cursor...), ils produisent une application RAG complète, testée et déployable.
+Ce dossier contient **12 prompts** (`phase00.md` à `phase11.md`). Exécutés **dans l'ordre**, un par un, par un agent de code (Claude Code, Cursor...), ils produisent une application RAG complète, testée et déployable.
 
 ## Mode d'emploi
 
@@ -21,6 +21,7 @@ Ce dossier contient **11 prompts** (`phase00.md` à `phase10.md`). Exécutés **
 | 5 | phase06 + phase07 | Admin Django et chatbot web en streaming |
 | 6 | phase08 + phase09 | API sécurisée, évaluation et réglages |
 | 7 | phase10 | Déploiement et livraison |
+| + | phase11 (évolution) | Front du chatbot en Vue 3 + Reka UI + Tailwind |
 
 ## Contrat d'architecture (à respecter à l'identique dans toutes les phases)
 
@@ -54,6 +55,7 @@ Ce dossier contient **11 prompts** (`phase00.md` à `phase10.md`). Exécutés **
 | `RETRIEVER` | `vector` | `vector` ou `hybrid` (BM25 + vectoriel, phase 09) |
 | `INDEX_ON_UPLOAD` | `True` | Indexer automatiquement après l'upload dans l'admin |
 | `DJANGO_LOG_LEVEL` | `INFO` | Niveau de journalisation |
+| `FRONTEND_DEV_URL` | (vide) | URL du serveur Vite en développement front (phase 11) |
 
 ### Package `rag_core/` (Python pur, aucun import de Django)
 
@@ -109,8 +111,15 @@ rag_core/
 - Services (`chatbot/services.py`) : `DocumentIndexingService(container=None)` avec `index(document)`, `remove_from_index(document)` ; `ChatService(container=None)` avec `ask(conversation, question)`, `stream(conversation, question)`
 - Autres classes : `UploadValidator` (`chatbot/validators.py`), `RateLimiter` (`chatbot/ratelimit.py`), `ApiKeyAuth` (`chatbot/api.py`)
 - Commandes de gestion : `chat_test`, `semantic_demo`, `chunk_preview`, `ingest`, `ask`, `create_api_key`, `eval_rag`, `backup_data`
-- Routes : `/admin/`, `/chat/...`, `/api/...` (docs sur `/api/docs`), `/health/`
+- Routes : `/admin/`, `/chat/...` + `chat/api/conversations/...` (JSON de session, phase 11), `/api/...` (docs sur `/api/docs`), `/health/`
 - Données : `data/media/` (uploads), `data/index/` (index vectoriel), `db.sqlite3`
+
+### Frontend `frontend/` (Vue 3 + Reka UI + Tailwind, phase 11)
+
+- Vue 3 + **TypeScript strict**, Vite, Reka UI (headless), Tailwind CSS v4 ; ESLint + Prettier + vitest (parseur SSE).
+- Django rend la coquille HTML et l'auth par session ; Vue monte sur `#chat-app` ; assets construits dans `static/chatbot/app/` (non commités), résolus via le **manifest Vite** (`chatbot/templatetags/vite.py`) ; dev hot-reload via `FRONTEND_DEV_URL`.
+- Structure : `src/api/` (HTTP/CSRF, sans état) · `src/composables/` (état réactif, `useChat`, `useConversations`) · `src/lib/sse.ts` (parseur SSE pur, testé) · `src/types/` · `src/components/{chat,conversations,ui}/`.
+- Protocole SSE inchangé : `event: sources | token | done | error`. Interdits : `v-html`, logique métier côté client, backend Node.
 
 ### Règles transversales
 
