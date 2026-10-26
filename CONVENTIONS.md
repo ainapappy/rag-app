@@ -15,7 +15,9 @@
   méthodes abstraites `@abstractmethod`. Une interface par dossier (`base.py`).
 - **Injection de dépendances** : par le constructeur, jamais d'import direct d'une
   implémentation concrète dans le métier ; les factories créent les objets à partir
-  des `Settings`.
+  des `Settings`. **Les classes ne construisent pas leurs dépendances : seul le
+  `Container` assemble** (≈ Service Container). Les faux de test s'injectent par
+  les paramètres nommés du `Container` (`llm=`, `embeddings=`, `store=`).
 - **DTO / valeurs** : `@dataclass(frozen=True)` (≈ DTO immutable).
 - **Exceptions métier** : hiérarchie sous `RagError` dans `rag_core/exceptions.py`.
 - **Configuration** : aucune valeur en dur dans le code — tout passe par
