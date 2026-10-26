@@ -15,6 +15,19 @@ def _clear_settings_cache():
     get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _strip_env_variables(monkeypatch):
+    """Retire les variables du contrat de l'environnement du processus.
+
+    django-environ charge le `.env` dans `os.environ` au démarrage de Django :
+    sans ce nettoyage, les « défauts » testés dépendraient du `.env` local.
+    """
+    for field in Settings.model_fields:
+        monkeypatch.delenv(field.upper(), raising=False)
+    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    monkeypatch.delenv("DJANGO_DEBUG", raising=False)
+
+
 def test_default_values():
     """Les défauts du contrat sont présents quand aucune variable n'écrase."""
     settings = Settings(_env_file=None)

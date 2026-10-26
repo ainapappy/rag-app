@@ -45,3 +45,22 @@ python manage.py runserver   # http://127.0.0.1:8000
 - Tests : `pytest` (aucun réseau requis).
 - Lint : `ruff check .`
 - Conventions du projet : voir [CONVENTIONS.md](CONVENTIONS.md).
+
+## Utilisation en ligne de commande
+
+```powershell
+# 1. Indexer des documents (idempotent : les fichiers inchangés sont sautés)
+python manage.py ingest docs/
+python manage.py ingest docs/ --list     # voir les sources indexées
+python manage.py ingest docs/ --reset    # reconstruire (obligatoire si EMBED_MODEL change)
+
+# 2. Poser une question (réponse uniquement à partir des documents, sources citées)
+python manage.py ask "Combien de jours de congés par an ?"
+python manage.py ask "..." --stream            # réponse progressive
+python manage.py ask "..." --show-context      # voir les chunks retrouvés
+python manage.py ask "..." --top-k 6 --min-score 0.2   # expérimentation
+
+# 3. Débug du découpage et de la sémantique
+python manage.py chunk_preview docs/guide_rag.md --strategy paragraph
+python manage.py semantic_demo --query "un félin sommeille"
+```

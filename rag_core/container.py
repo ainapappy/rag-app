@@ -12,6 +12,9 @@ from rag_core.embeddings.factory import EmbeddingFactory
 from rag_core.llm.factory import LLMFactory
 from rag_core.loaders.factory import LoaderFactory
 from rag_core.pipeline.ingestion import IngestionPipeline
+from rag_core.pipeline.rag import RagPipeline
+from rag_core.prompting.prompt_builder import PromptBuilder
+from rag_core.retrieval.retriever import Retriever
 from rag_core.settings import Settings, get_settings
 from rag_core.vectorstore.factory import VectorStoreFactory
 
@@ -74,7 +77,22 @@ class Container:
             batch_size=self._settings.embed_batch_size,
         )
 
-    # La propriété `rag_pipeline` sera ajoutée en phase 05.
+    @cached_property
+    def retriever(self):
+        """Retriever vectoriel configuré par TOP_K et MIN_SCORE (lazy)."""
+        return Retriever(
+            self.embeddings, self.store, self._settings.top_k, self._settings.min_score
+        )
+
+    @cached_property
+    def prompt_builder(self):
+        """Constructeur de prompts RAG (lazy)."""
+        return PromptBuilder()
+
+    @cached_property
+    def rag_pipeline(self):
+        """Pipeline RAG complet (retrieve → prompt → LLM), lazy."""
+        return RagPipeline(self.retriever, self.prompt_builder, self.llm)
 
 
 # Cache module-level du conteneur (≈ singleton applicatif).

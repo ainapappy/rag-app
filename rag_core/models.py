@@ -1,6 +1,7 @@
 """Objets-valeurs du cœur RAG (dataclasses immuables, ≈ DTO Laravel)."""
 
 import hashlib
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 # Rôles valides d'un message de conversation (convention API OpenAI).
@@ -71,3 +72,34 @@ class SearchResult:
 
     chunk: Chunk
     score: float
+
+
+@dataclass(frozen=True)
+class Source:
+    """Une source citée dans une réponse : fichier, page, score, extrait."""
+
+    source: str
+    page: int | None
+    score: float
+    excerpt: str
+
+
+@dataclass(frozen=True)
+class Answer:
+    """Réponse complète du RAG : texte, sources citées, trouvé ou non."""
+
+    text: str
+    sources: tuple[Source, ...]
+    found: bool
+
+
+@dataclass
+class StreamedAnswer:
+    """Réponse en streaming : sources immédiates + générateur de tokens.
+
+    Non « frozen » car `tokens` est un itérateur consommé au fil de l'eau.
+    """
+
+    sources: tuple[Source, ...]
+    found: bool
+    tokens: Iterator[str]
