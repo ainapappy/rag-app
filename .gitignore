@@ -26,6 +26,7 @@ htmlcov/
 # Front (build Vite : assets reconstruits via npm run build, non commités)
 frontend/node_modules/
 static/chatbot/app/
+.docs
 
 # IDE / OS
 .idea/
